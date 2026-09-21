@@ -198,10 +198,10 @@ namespace LuminaFeed.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
-
                     b.HasIndex("FeedUrl")
                         .IsUnique();
+
+                    b.HasIndex("CategoryId", "Popularity");
 
                     b.ToTable("Feeds");
                 });
@@ -229,6 +229,7 @@ namespace LuminaFeed.Migrations
 
                     b.Property<string>("UserId")
                         .IsRequired()
+                        .HasMaxLength(450)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -417,7 +418,7 @@ namespace LuminaFeed.Migrations
                     b.HasOne("LuminaFeed.Domain.Feed", "Feed")
                         .WithMany("Subscriptions")
                         .HasForeignKey("FeedId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.ClientCascade)
                         .IsRequired();
 
                     b.HasOne("LuminaFeed.Data.ApplicationUser", "User")

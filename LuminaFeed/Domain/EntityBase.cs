@@ -6,5 +6,5 @@ namespace LuminaFeed.Domain;
 /// </summary>
 public abstract class EntityBase
 {
-    public Guid Id { get; set; } = Guid.CreateVersion7();
+    public Guid Id { get; private set; } = Guid.CreateVersion7();
 }

@@ -1,10 +1,23 @@
 using LuminaFeed.Data;
 using LuminaFeed.Options;
 using LuminaFeed.Services.Email;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace LuminaFeed.Tests;
+
+/// <summary>Captures log entries so tests can assert on level/exception.</summary>
+internal sealed class ListLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+    IDisposable? ILogger.BeginScope<TState>(TState state) => null;
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, exception));
+}
 
 public class EmailLayoutTests
 {
@@ -19,6 +32,26 @@ public class EmailLayoutTests
         Assert.Contains("<p>Body content</p>", html);
         // VML namespace so Outlook can render bulletproof buttons.
         Assert.Contains("urn:schemas-microsoft-com:vml", html);
+    }
+
+    [Fact]
+    public void Render_HtmlEncodesHeading()
+    {
+        var html = EmailLayout.Render("<script>alert(1)</script>", "<p>ok</p>");
+
+        Assert.DoesNotContain("<script>alert(1)</script>", html);
+        Assert.Contains("&lt;script&gt;", html);
+    }
+
+    [Fact]
+    public void Button_HtmlEncodesTextAndUrl()
+    {
+        var html = EmailLayout.Button("<b>Click</b>", "https://x.test/a?a=1&b=2");
+
+        Assert.DoesNotContain("<b>Click</b>", html);
+        Assert.Contains("&lt;b&gt;Click&lt;/b&gt;", html);
+        // The ampersand between query params is HTML-encoded inside the href attribute.
+        Assert.Contains("a=1&amp;b=2", html);
     }
 
     [Fact]
@@ -60,6 +93,27 @@ public class MailKitMailSenderTests
         Assert.Equal("LuminaFeed", ((MimeKit.MailboxAddress)mime.From[0]).Name);
         Assert.Equal("user@example.test", ((MimeKit.MailboxAddress)mime.To[0]).Address);
         Assert.Contains("<p>Hi</p>", mime.HtmlBody);
+    }
+
+    [Fact]
+    public async Task SendAsync_OnTransportFailure_LogsErrorAndRethrows()
+    {
+        var logger = new ListLogger<MailKitMailSender>();
+        // Port 1 on loopback refuses immediately, forcing ConnectAsync to throw.
+        var sender = new MailKitMailSender(
+            Microsoft.Extensions.Options.Options.Create(new SmtpOptions
+            {
+                Host = "127.0.0.1",
+                Port = 1,
+                FromAddress = "no-reply@luminafeed.local",
+                FromName = "LuminaFeed",
+            }),
+            logger);
+
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            sender.SendAsync(new EmailMessage("user@example.test", null, "Subject", "<p>Hi</p>")));
+
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Error && e.Exception is not null);
     }
 }
 

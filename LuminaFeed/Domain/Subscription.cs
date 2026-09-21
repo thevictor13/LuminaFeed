@@ -22,5 +22,5 @@ public sealed class Subscription : EntityBase
     /// <summary>Slack incoming-webhook URL; required when <see cref="SlackEnabled"/> is set.</summary>
     public string? SlackWebhookUrl { get; set; }
 
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedAt { get; private set; } = DateTimeOffset.UtcNow;
 }

@@ -19,17 +19,28 @@ public sealed class MailKitMailSender(IOptions<SmtpOptions> options, ILogger<Mai
     {
         var mime = BuildMessage(message);
 
+        // MailKit's SmtpClient is IDisposable only (not IAsyncDisposable); disposal runs after the
+        // awaited DisconnectAsync above, so a synchronous using is correct here.
         using var client = new SmtpClient();
         var socketOptions = _options.UseStartTls ? SecureSocketOptions.StartTls : SecureSocketOptions.None;
-        await client.ConnectAsync(_options.Host, _options.Port, socketOptions, cancellationToken);
-
-        if (!string.IsNullOrEmpty(_options.UserName))
+        try
         {
-            await client.AuthenticateAsync(_options.UserName, _options.Password ?? string.Empty, cancellationToken);
-        }
+            await client.ConnectAsync(_options.Host, _options.Port, socketOptions, cancellationToken).ConfigureAwait(false);
 
-        await client.SendAsync(mime, cancellationToken);
-        await client.DisconnectAsync(quit: true, cancellationToken);
+            if (!string.IsNullOrEmpty(_options.UserName))
+            {
+                await client.AuthenticateAsync(_options.UserName, _options.Password ?? string.Empty, cancellationToken).ConfigureAwait(false);
+            }
+
+            await client.SendAsync(mime, cancellationToken).ConfigureAwait(false);
+            await client.DisconnectAsync(quit: true, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Log with context, then rethrow so callers (e.g. the Identity account flows) still see the failure.
+            logger.LogError(ex, "Failed to send email to {Recipient} with subject {Subject}", message.ToEmail, message.Subject);
+            throw;
+        }
 
         logger.LogInformation("Sent email to {Recipient} with subject {Subject}", message.ToEmail, message.Subject);
     }

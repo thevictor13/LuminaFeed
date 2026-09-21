@@ -140,7 +140,13 @@ public sealed class DomainModelTests : IDisposable
 
         using (var ctx = CreateContext())
         {
-            ctx.Feeds.Remove(ctx.Feeds.Single());
+            // Subscriptions use ClientCascade (see FeedConfiguration), so they must be tracked for EF
+            // to cascade the delete; the app deletes feeds by loading them with their dependents.
+            var feedToDelete = ctx.Feeds
+                .Include(f => f.Subscriptions)
+                .Include(f => f.Articles)
+                .Single();
+            ctx.Feeds.Remove(feedToDelete);
             ctx.SaveChanges();
         }
 
@@ -149,6 +155,18 @@ public sealed class DomainModelTests : IDisposable
             Assert.Empty(ctx.Articles);
             Assert.Empty(ctx.Subscriptions);
         }
+    }
+
+    [Fact]
+    public void Feed_HasIndexOn_CategoryIdAndPopularity()
+    {
+        using var ctx = CreateContext();
+        var feedType = ctx.Model.FindEntityType(typeof(Feed))!;
+
+        var hasCompositeIndex = feedType.GetIndexes().Any(i =>
+            i.Properties.Select(p => p.Name).SequenceEqual([nameof(Feed.CategoryId), nameof(Feed.Popularity)]));
+
+        Assert.True(hasCompositeIndex, "Expected a (CategoryId, Popularity) index to back the default public sort.");
     }
 
     [Fact]

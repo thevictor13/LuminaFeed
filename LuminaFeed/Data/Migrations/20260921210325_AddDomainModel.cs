@@ -88,7 +88,7 @@ namespace LuminaFeed.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    UserId = table.Column<string>(type: "TEXT", nullable: false),
+                    UserId = table.Column<string>(type: "TEXT", maxLength: 450, nullable: false),
                     FeedId = table.Column<Guid>(type: "TEXT", nullable: false),
                     EmailEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
                     SlackEnabled = table.Column<bool>(type: "INTEGER", nullable: false),
@@ -108,8 +108,7 @@ namespace LuminaFeed.Migrations
                         name: "FK_Subscriptions_Feeds_FeedId",
                         column: x => x.FeedId,
                         principalTable: "Feeds",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateIndex(
@@ -125,9 +124,9 @@ namespace LuminaFeed.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Feeds_CategoryId",
+                name: "IX_Feeds_CategoryId_Popularity",
                 table: "Feeds",
-                column: "CategoryId");
+                columns: new[] { "CategoryId", "Popularity" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Feeds_FeedUrl",

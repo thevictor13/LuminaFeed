@@ -37,6 +37,9 @@ account is seeded from the optional **`AdminSeed`** config section (`AdminSeedOp
   source control (env/user-secrets) or no admin is seeded.
 - **Idempotent**: creates the user (with `EmailConfirmed = true`, so it can sign in under `RequireConfirmedAccount`)
   if missing; promotes an existing user to admin if needed; otherwise does nothing.
+- **Fail-fast**: if `CreateAsync` fails (e.g. the configured password violates the Identity policy) the seeder logs
+  the errors and throws, so a configured-but-unseeded admin surfaces loudly at startup rather than silently leaving
+  the admin area unreachable.
 
 ## Startup wiring (`Program.cs`)
 
@@ -54,4 +57,4 @@ After the app is built, in a DI scope: `Database.MigrateAsync()`, then `Database
 Catalogue integrity (counts, referential integrity, distinct popularity/URLs, required fields); DB population with
 resolved categories; idempotency; preservation of existing rows on re-seed; and pickup of newcomers after a partial
 seed. `AdminUserSeederTests.cs` covers admin creation when configured, skip when unconfigured, promotion of an
-existing user, and idempotency.
+existing user, idempotency, and fail-fast when creation fails.

@@ -23,5 +23,5 @@ public sealed class Article : EntityBase
 
     public DateTimeOffset? PublishedAt { get; set; }
 
-    public DateTimeOffset FetchedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset FetchedAt { get; private set; } = DateTimeOffset.UtcNow;
 }

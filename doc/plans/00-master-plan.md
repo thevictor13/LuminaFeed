@@ -40,9 +40,10 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 - [x] **G0.4 — Admin authorization.** Turn `IsAdmin` into an `"Admin"` authorization policy; guard an admin area + nav section. _(needs G0.3)_
 - [x] **G0.5 — Config & options.** appsettings sections + typed options: Development **Papercut** SMTP (localhost), polling interval, HMAC unsubscribe secret. _(with G0.3; parallel)_
 - [x] **G0.6 — Real email infra.** Replace `IdentityNoOpEmailSender` with a **MailKit** `IEmailSender<ApplicationUser>`; establish the **table-based, Outlook-safe** email layout foundation. Unblocks the real confirmation flow. _(needs G0.5; parallel with G0.3/G0.4)_
-- [x] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. _(needs G0.3 + G0.R)_ ✅ **Done** — embedded `rss-feeds.json` seeded via `DatabaseSeeder` (insert-missing-only, idempotent); startup runs `MigrateAsync` + seed (⚠️ auto-migrate is a temporary, not-production-ready shortcut). Plan: [`G0.7-seed-data.md`](./G0.7-seed-data.md); feature: [`../features/seed-data.md`](../features/seed-data.md).
+- [x] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. Also adds a **bootstrap admin seeder** (`AdminUserSeeder` + optional `AdminSeed` config) so the admin area is reachable on a fresh DB. _(needs G0.3 + G0.R)_ ✅ **Done** — embedded `rss-feeds.json` seeded via `DatabaseSeeder` (insert-missing-only, idempotent); startup runs `MigrateAsync` + seed (⚠️ auto-migrate is a temporary, not-production-ready shortcut). Plan: [`G0.7-seed-data.md`](./G0.7-seed-data.md); feature: [`../features/seed-data.md`](../features/seed-data.md).
+- [x] 🗂 **G0.8 — Phase 0 review & remediation.** Senior architecture review of the Phase-0 commits and the fixes it surfaced: correct startup cancellation tokens, MailKit error handling, admin-seed fail-fast, a `(CategoryId, Popularity)` index for the default sort, `UserId` max length + single DB cascade path into `Subscriptions` (SQL-Server portability), targeted entity encapsulation, HTML-encoded email layout, `global.json` SDK pin, a real host-boot integration test, and the missing Phase-0 feature docs. _(after G0.1–G0.7)_ — see [`G0.8-phase-0-remediation.md`](./G0.8-phase-0-remediation.md).
 
-**Groundwork parallelization:** `G0.R` first and gating. Then `G0.1 → {G0.2, G0.3, G0.5}`; `G0.4` after G0.3, `G0.6` after G0.5, and `G0.7` once G0.3 is done (G0.R already complete).
+**Groundwork parallelization:** `G0.R` first and gating. Then `G0.1 → {G0.2, G0.3, G0.5}`; `G0.4` after G0.3, `G0.6` after G0.5, and `G0.7` once G0.3 is done (G0.R already complete). `G0.8` reviews the finished phase.
 
 ---
 
@@ -79,7 +80,7 @@ dependencies are called out.
 - [ ] 🗂 **B4 — Feed detail page** (article cards: image, first paragraphs, title, subject to availability; subscribe/unsubscribe button). _(needs G0.3; content from S4)_
 
 ### Track C — Subscriptions & notifications
-- [ ] 🗂 **C1 — Full subscribe flow** (dialog with email + Slack switches; unauthenticated → login/register preserving return location via query param; unsubscribe-in-red state). _(needs S3, auth)_
+- [ ] 🗂 **C1 — Full subscribe flow** (dialog with email + Slack switches; unauthenticated → login/register preserving return location via query param; unsubscribe-in-red state). **Enforce the `SlackEnabled ⇒ SlackWebhookUrl` invariant** (and the `https://hooks.slack.com/services` prefix rule) here via FluentValidation — the `Subscription` entity documents but does not enforce it. _(needs S3, auth)_
 - [ ] 🗂 **C2 — Slack notifications** (`SlackNotificationService` via Slack.Webhooks; validate URL starts `https://hooks.slack.com/services`; LastOrDefault prefill; default channel). _(needs abstraction; parallel with email)_
 - [ ] 🗂 **C3 — Email notifications hardening** (article templates; Outlook table-based layout + Outlook-only duplicated buttons). _(needs S5, G0.6)_
 - [ ] 🗂 **C4 — Polling hardening** (track feeds with ≥1 subscriber; ETag/Last-Modified + 304; **resolve images** — use the RSS-provided image, else scrape `og:image` from the article target; produce email→articles dictionary; dispatch to email/Slack per user choice). _(needs S4, C2, C3)_
@@ -94,11 +95,11 @@ dependencies are called out.
 - **Popularity** — a **fixed** figure per feed (not computed), stored on `Feed`, set from the G0.R research. Default ordering sorts by it.
 - **Categories** — derived from the G0.R feed research, **not** the spec's illustrative examples.
 - **Images** — use the **RSS-provided image** if present; otherwise the **`og:image`** scraped from the article target. **No admin upload.** Store the image URL (not a blob).
+- **Article identity/de-dup** — resolved at the schema level in G0.3: `Article.ExternalId` (RSS `<guid>` else link) with a unique `(FeedId, ExternalId)` index. Polling (C4) upserts against it.
 
 ## Open decisions (resolve during detailed planning)
 
 - **"More"/pagination mechanics** — investigate the options; **constraint: avoid a full page reload** (lean on InteractiveServer partial loading / enhanced navigation). Resolved in the B1 detailed plan.
-- **Article identity/de-dup** for polling (guid/link/hash).
 - **HMAC key management/rotation** for unsubscribe tokens.
 - **Confirmation UX** now that a real email sender exists.
 

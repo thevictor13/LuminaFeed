@@ -77,9 +77,11 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    // Migration + seeding run to completion during startup; ApplicationStopping signals shutdown,
+    // not a startup deadline, so it is not the right token to cancel this work.
     await services.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
-    await services.GetRequiredService<DatabaseSeeder>().SeedAsync(app.Lifetime.ApplicationStopping);
-    await services.GetRequiredService<AdminUserSeeder>().SeedAsync();
+    await services.GetRequiredService<DatabaseSeeder>().SeedAsync(CancellationToken.None);
+    await services.GetRequiredService<AdminUserSeeder>().SeedAsync(CancellationToken.None);
 }
 
 // Configure the HTTP request pipeline.

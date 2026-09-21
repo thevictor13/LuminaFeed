@@ -101,6 +101,17 @@ public sealed class AdminUserSeederTests : IDisposable
     }
 
     [Fact]
+    public async Task Seed_WhenCreateFails_Throws()
+    {
+        // "weak" violates the default Identity password policy, so CreateAsync fails and the seeder
+        // must surface it (a silently-unseeded admin would leave the admin area unreachable).
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            RunSeederAsync(new AdminSeedOptions { Email = "admin@luminafeed.local", Password = "weak" }));
+
+        Assert.Equal(0, UserCount());
+    }
+
+    [Fact]
     public async Task Seed_IsIdempotent()
     {
         var options = new AdminSeedOptions { Email = "admin@luminafeed.local", Password = Password };

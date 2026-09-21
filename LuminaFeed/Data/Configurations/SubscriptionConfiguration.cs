@@ -11,7 +11,9 @@ public sealed class SubscriptionConfiguration : IEntityTypeConfiguration<Subscri
         builder.HasKey(s => s.Id);
         builder.Property(s => s.Id).ValueGeneratedNever();
 
-        builder.Property(s => s.UserId).IsRequired();
+        // 450 matches ASP.NET Identity's AspNetUsers.Id key width so this column can back the
+        // (UserId, FeedId) unique index on any provider (SQL Server rejects unbounded strings in an index).
+        builder.Property(s => s.UserId).IsRequired().HasMaxLength(450);
         builder.Property(s => s.SlackWebhookUrl).HasMaxLength(2048);
 
         // One subscription per (user, feed).

@@ -15,8 +15,10 @@ internal sealed class AdminUserSeeder(
     IOptions<AdminSeedOptions> options,
     ILogger<AdminUserSeeder> logger)
 {
-    public async Task SeedAsync()
+    public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var opts = options.Value;
         if (!opts.IsConfigured)
         {
@@ -53,8 +55,11 @@ internal sealed class AdminUserSeeder(
         }
         else
         {
-            logger.LogError("Failed to seed admin user '{Email}': {Errors}",
-                email, string.Join("; ", result.Errors.Select(e => e.Description)));
+            // Fail fast: a configured-but-unseeded admin (e.g. a password that violates Identity policy)
+            // would silently leave the admin area unreachable, so surface it loudly at startup.
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            logger.LogError("Failed to seed admin user '{Email}': {Errors}", email, errors);
+            throw new InvalidOperationException($"Failed to seed admin user '{email}': {errors}");
         }
     }
 }
