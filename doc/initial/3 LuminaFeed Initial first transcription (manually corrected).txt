@@ -1,0 +1,73 @@
+(00:01) This is the initial description of LuminaFeed, an online service that allows users to register and sign up for alerts.
+(00:18) The UI presents a list of RSS feeds, complete with their images for the feeds.
+(00:28) Once users sign up for any of the feeds, they will receive alerts of the latest
+(00:39) items/articles coming through. These alerts will materialize as notifications, either through email or via Slack. The list of RSS feeds is admin-curated; all the feeds will be categorized.
+(01:17) We will have an entity listing all the available categories, and
+(01:27) whenever a new RSS feed is added, a category can be selected using a dropdown menu.
+(01:36) The initial seeded list of categories should include
+(01:41) ones like World News,
+(01:47) Markets, Weather, Breaking News, etc.
+(01:55) We must be able to differentiate standard users from admin users. Initially, this will be a simple flag on the user table
+(02:07) called
+(02:10) isAdmin.
+(02:10) Admin users will be presented with views where they can see the list of signed-up users and their RSS feeds, another page where they can edit the list of categories, and another where they can
+(02:33) edit the list of RSS feeds, delete or
+(02:40) add a new one, basically a CRUD.
+(02:44) Admin users should also be able to remove certain RSS subscriptions from users or delete user registrations completely.
+(02:56) Standards on the UI: for normal users, the main view should display the RSS feeds by category, but each category should display a maximum of 5 entries. On desktop screens, these entries should be occupying a single row, and on mobile, as many as fit.
+(03:27) At the end of each of these entries, we should have a "more" button that would load 5 extra.
+(03:38) Within each category,
+(03:41) RSS feeds would be, by default, ordered by popularity.
+(03:48) But within each category—and I mean in the header of each category—we should have an order button, which, as I said, by default orders by popularity, but it should also be possible to order by
+(04:08) name,
+(04:10) ascending and descending.
+(04:13) On the root (top) of the page, we should be able to
+(04:17) filter by category itself, and if we do, then only that category's items would be shown, not limited to 5 but to
+(04:33) 30. In this case, if we still have more than 30 items to be listed, we again show a more button, and that more button would add an extra 30 to the cap. These RSS feeds would be displayed as cards. These cards would also display an image that is assigned to the RSS feed, if available.
+(05:06) These cards will have two buttons: one button to lead the user to the page of that particular RSS feed, which would list the latest articles within. On this page, we would have a different kind of card, which would show the display image for the
+(05:34) article and
+(05:38) an initial
+(05:40) few paragraphs of the article and the
+(05:48) title,
+(05:51) all subject to data availability. On the top of this page, we again should have a subscribe button, unless the user is already subscribed.
+(06:06) Globally, we treat users that are not logged in
+(06:11) as users who
+(06:14) haven't subscribed to anything. Whenever
+(06:18) an unauthenticated user tries to subscribe, we
+(06:29) bring them to the login page, where we also offer to register if they are not registered yet.
+(06:41) One thing that we must do, though, is to keep track of where they were, so that when they do log in or when they do register, then they return back to the original location where they started from before starting the login or signup process.
+(07:03) Using a query parameter for this is perfectly fine. Of course, if the user is signed in and is already subscribed to the particular RSS feed, then the button should say "unsubscribe" in red. What should happen when the user is signed in and clicks "subscribe"?
+(07:27) Well, a dialog window should appear
+(07:33) where they are
+(07:38) presented with two switches. One
+(07:43) is for email notifications, and another one for Slack. Email notifications will work out of the box because the user is already registered with us and we have their email address. It will not be possible to specify extra email addresses or a different one
+(08:07) because we must validate their email address
+(08:14) by getting them to actually click the verification link. At this point, it's out of scope to support
+(08:25) a different email.
+(08:28) When it comes to Slack:
+(08:48) At the moment, it appears that a single webhook URL will be sufficient to actually register a Slack notification. Therefore, whenever Slack is switched on, we display an input box where they can specify the webhook. The field should be pre-populated, if the user has provided a webhook before (LastOrDefault). This webhook URL, though, must be validated, and we must check whether
+(09:19) it truly is
+(09:21) a Slack hook. Otherwise, we would reject it. So Slack hooks
+(09:31) begin with https://hooks.slack.com/services, I believe.
+(09:41) This webhook will have a default channel, so we do not have to specify a Slack channel here. We should have an INotificationService
+(09:54) interface
+(09:57) and two implementations of it. One will be an EmailNotificationService, and the other one will be a SlackNotificationService. And depending on the choice the user made, we will invoke either or both. For our purposes, it appears that the Slack.Webhooks NuGet package will be more than enough for our purposes,
+(10:28) which we can use when implementing the SlackNotificationService. For the EmailNotificationService, we should use MailKit. The latter should be used when implementing the EmailSender for the registration emails.
+(10:40) The appsettings.Development.json should
+(10:45) be pre-populated with default Papercut settings for the SMTP server running on localhost.
+(11:01) When implementing the email templates, it must be considered that some people might be using the
+(11:13) Word-based Outlook clients, which means that we can't use div-based emails, so we have to fall back to table-based ones. This also means that we do need to
+(11:31) duplicate buttons, for example, so that they look good in Outlook.
+(11:39) These duplicates, of course, should only appear for Outlook and not the other one.
+(11:47) How the feed polling should work: we need to have a background task that
+(11:55) initiates the polling
+(12:00) every minute. This frequency can be configured in the appsettings file.
+(12:08) Our RSS service should keep track of all the feeds that our system is subscribed to, which means all the feeds that at least one of our users have subscribed to.
+(12:28) Every single time polling is requested, we should iterate through the list of active feeds and fetch the list. When fetching each of these lists, we must make sure that we use the ETag and Last-Modified headers so that servers don't have to return every single item.
+(13:00) This way, they can return 304 Not Modified if there is no new item available. Whenever articles are being returned, the service
+(13:17) returns a dictionary where the key is the user's email address, and the value is a list of articles.
+(13:35) The background service, in turn, passes this on to the notification services based on the user's choice.
+(13:47) The EmailNotificationService should implement HMAC-signed token-based unsubscribe, conforming to RFC 8058. We should therefore have a simple page where the user can press a single unsubscribe button to unsubscribe from each of their RSS feeds - accessible through the Unsubscribe link.
+(14:23) When the unsubscribe button is pressed whenever on the site,
+(14:32) it should be possible to only unsubscribe from one of the notification options, or both.
+All new Entities created should have v7 GUIDS as their IDs.
