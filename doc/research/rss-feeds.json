@@ -1,0 +1,1082 @@
+{
+    "generatedOn":  "2026-09-21",
+    "categories":  [
+                       {
+                           "name":  "World News",
+                           "description":  "Global headlines and international coverage from major broadcasters and newspapers."
+                       },
+                       {
+                           "name":  "Breaking News",
+                           "description":  "Top-story and front-page feeds for the latest developments as they happen."
+                       },
+                       {
+                           "name":  "Politics",
+                           "description":  "Government, elections, and policy coverage."
+                       },
+                       {
+                           "name":  "Business \u0026 Markets",
+                           "description":  "Companies, the economy, and financial markets."
+                       },
+                       {
+                           "name":  "Technology",
+                           "description":  "Consumer tech, gadgets, software, startups, and cybersecurity."
+                       },
+                       {
+                           "name":  "Science",
+                           "description":  "Research, space, and the natural world."
+                       },
+                       {
+                           "name":  "Health",
+                           "description":  "Medicine, public health, and wellbeing."
+                       },
+                       {
+                           "name":  "Sports",
+                           "description":  "Scores, analysis, and coverage across major sports."
+                       },
+                       {
+                           "name":  "Entertainment \u0026 Culture",
+                           "description":  "Film, TV, music, gaming, and the arts."
+                       },
+                       {
+                           "name":  "Weather",
+                           "description":  "Forecasts, storm tracking, and climate."
+                       }
+                   ],
+    "feeds":  [
+                  {
+                      "name":  "BBC News — Top Stories",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Top Stories coverage from BBC News.",
+                      "popularity":  99472
+                  },
+                  {
+                      "name":  "The New York Times — Home Page",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+                      "siteUrl":  "https://www.nytimes.com",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Home Page coverage from The New York Times.",
+                      "popularity":  95542
+                  },
+                  {
+                      "name":  "CNN — Top Stories",
+                      "category":  "Breaking News",
+                      "feedUrl":  "http://rss.cnn.com/rss/edition.rss",
+                      "siteUrl":  "https://www.cnn.com",
+                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "description":  "Top Stories coverage from CNN.",
+                      "popularity":  95250
+                  },
+                  {
+                      "name":  "The Guardian — International",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://www.theguardian.com/international/rss",
+                      "siteUrl":  "https://www.theguardian.com/international",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "International coverage from The Guardian.",
+                      "popularity":  94485
+                  },
+                  {
+                      "name":  "NPR — News",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://feeds.npr.org/1001/rss.xml",
+                      "siteUrl":  "https://www.npr.org",
+                      "imageUrl":  "https://media.npr.org/images/podcasts/primary/npr_generic_image_300.jpg?s=200",
+                      "description":  "News coverage from NPR.",
+                      "popularity":  85005
+                  },
+                  {
+                      "name":  "ABC News — Top Stories",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://abcnews.go.com/abcnews/topstories",
+                      "siteUrl":  "https://abcnews.go.com",
+                      "imageUrl":  "https://s.abcnews.com/images/site/abcnews_google_rss_logo.png",
+                      "description":  "Top Stories coverage from ABC News.",
+                      "popularity":  78028
+                  },
+                  {
+                      "name":  "Sky News — Home",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://feeds.skynews.com/feeds/rss/home.xml",
+                      "siteUrl":  "https://news.sky.com",
+                      "imageUrl":  "https://e3.365dm.com/skynews/logo.png",
+                      "description":  "Home coverage from Sky News.",
+                      "popularity":  76245
+                  },
+                  {
+                      "name":  "Los Angeles Times",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://www.latimes.com/local/rss2.0.xml",
+                      "siteUrl":  "https://www.latimes.com",
+                      "imageUrl":  "https://ca-times.brightspotcdn.com/dims4/default/64e287b/2147483647/strip/true/crop/2400x1260+0+0/resize/1200x630!/quality/75/?url=https%3A%2F%2Fcalifornia-times-brightspot.s3.amazonaws.com%2Fdf%2F45%2F57d858144a2a88575fa2b03080bb%2Flatlogo-ss.jpg",
+                      "description":  "Latest breaking news headlines from Los Angeles Times.",
+                      "popularity":  65722
+                  },
+                  {
+                      "name":  "The Independent",
+                      "category":  "Breaking News",
+                      "feedUrl":  "https://www.independent.co.uk/rss",
+                      "siteUrl":  "https://www.independent.co.uk",
+                      "imageUrl":  "https://www.independent.co.uk/img/shortcut-icons/icon-96x96.png",
+                      "description":  "Latest breaking news headlines from The Independent.",
+                      "popularity":  61201
+                  },
+                  {
+                      "name":  "BBC News — Business",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/business/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/business",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Business coverage from BBC News.",
+                      "popularity":  100395
+                  },
+                  {
+                      "name":  "The New York Times — Business",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/business",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Business coverage from The New York Times.",
+                      "popularity":  95612
+                  },
+                  {
+                      "name":  "The Guardian — Business",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://www.theguardian.com/business/rss",
+                      "siteUrl":  "https://www.theguardian.com/business",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Business coverage from The Guardian.",
+                      "popularity":  93961
+                  },
+                  {
+                      "name":  "Forbes — Business",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://www.forbes.com/business/feed/",
+                      "siteUrl":  "https://www.forbes.com/business/",
+                      "imageUrl":  "https://imageio.forbes.com/i-forbesimg/media/assets/forbes_1200x1200.jpg?format=jpg\u0026amp;fit=bounds",
+                      "description":  "Business coverage from Forbes.",
+                      "popularity":  87545
+                  },
+                  {
+                      "name":  "CNBC — Top News",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01\u0026id=100003114",
+                      "siteUrl":  "https://www.cnbc.com",
+                      "imageUrl":  "https://image.cnbcfm.com/api/v1/image/108285632-1774986309800-cnbc_versant_share.png?v=1774986411\u0026amp;w=1920\u0026amp;h=1080",
+                      "description":  "Top News coverage from CNBC.",
+                      "popularity":  85565
+                  },
+                  {
+                      "name":  "Business Insider",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://www.businessinsider.com/rss",
+                      "siteUrl":  "https://www.businessinsider.com",
+                      "imageUrl":  "https://www.businessinsider.com/public/assets/logos/og-image-logo-social.png?v=2023-11",
+                      "description":  "Latest business \u0026 markets headlines from Business Insider.",
+                      "popularity":  82500
+                  },
+                  {
+                      "name":  "MarketWatch — Top Stories",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "http://feeds.marketwatch.com/marketwatch/topstories/",
+                      "siteUrl":  "https://www.marketwatch.com",
+                      "imageUrl":  "https://www.marketwatch.com/rss/marketwatch.gif",
+                      "description":  "Top Stories coverage from MarketWatch.",
+                      "popularity":  66152
+                  },
+                  {
+                      "name":  "Fortune",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://fortune.com/feed/",
+                      "siteUrl":  "https://fortune.com",
+                      "imageUrl":  "https://fortune.com/img-assets/wp-content/uploads/2020/01/Digital-Card4.jpg?resize=1200,600",
+                      "description":  "Latest business \u0026 markets headlines from Fortune.",
+                      "popularity":  65349
+                  },
+                  {
+                      "name":  "Investing.com",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://www.investing.com/rss/news.rss",
+                      "siteUrl":  "https://www.investing.com",
+                      "imageUrl":  null,
+                      "description":  "Latest business \u0026 markets headlines from Investing.com.",
+                      "popularity":  57739
+                  },
+                  {
+                      "name":  "Seeking Alpha",
+                      "category":  "Business \u0026 Markets",
+                      "feedUrl":  "https://seekingalpha.com/feed.xml",
+                      "siteUrl":  "https://seekingalpha.com",
+                      "imageUrl":  null,
+                      "description":  "Latest business \u0026 markets headlines from Seeking Alpha.",
+                      "popularity":  53174
+                  },
+                  {
+                      "name":  "BBC News — Entertainment \u0026 Arts",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/entertainment_and_arts",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Entertainment \u0026 Arts coverage from BBC News.",
+                      "popularity":  96871
+                  },
+                  {
+                      "name":  "The New York Times — Arts",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Arts.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/arts",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Arts coverage from The New York Times.",
+                      "popularity":  95178
+                  },
+                  {
+                      "name":  "The Guardian — Culture",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://www.theguardian.com/culture/rss",
+                      "siteUrl":  "https://www.theguardian.com/culture",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Culture coverage from The Guardian.",
+                      "popularity":  93857
+                  },
+                  {
+                      "name":  "Rolling Stone",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://www.rollingstone.com/feed/",
+                      "siteUrl":  "https://www.rollingstone.com",
+                      "imageUrl":  "https://www.rollingstone.com/wp-content/uploads/2024/12/R-Avatar_512x512_flat.png?w=32",
+                      "description":  "Latest entertainment \u0026 culture headlines from Rolling Stone.",
+                      "popularity":  81293
+                  },
+                  {
+                      "name":  "IGN",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://feeds.ign.com/ign/all",
+                      "siteUrl":  "https://www.ign.com",
+                      "imageUrl":  "https://s3.amazonaws.com/o.assets.images.ign.com/kraken/IGN-Logo-RSS.png",
+                      "description":  "Latest entertainment \u0026 culture headlines from IGN.",
+                      "popularity":  79688
+                  },
+                  {
+                      "name":  "Billboard",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://www.billboard.com/feed/",
+                      "siteUrl":  "https://www.billboard.com",
+                      "imageUrl":  "https://www.billboard.com/wp-content/themes/vip/pmc-billboard-2021/assets/app/icons/icon-512x512.png",
+                      "description":  "Latest entertainment \u0026 culture headlines from Billboard.",
+                      "popularity":  78920
+                  },
+                  {
+                      "name":  "The Hollywood Reporter",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://www.hollywoodreporter.com/feed/",
+                      "siteUrl":  "https://www.hollywoodreporter.com",
+                      "imageUrl":  "https://www.hollywoodreporter.com/wp-content/uploads/2026/05/thr-site-icon.png?w=32",
+                      "description":  "Latest entertainment \u0026 culture headlines from The Hollywood Reporter.",
+                      "popularity":  76857
+                  },
+                  {
+                      "name":  "Variety",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://variety.com/feed/",
+                      "siteUrl":  "https://variety.com",
+                      "imageUrl":  "https://variety.com/wp-content/uploads/2018/06/variety-favicon.png?w=32",
+                      "description":  "Latest entertainment \u0026 culture headlines from Variety.",
+                      "popularity":  76350
+                  },
+                  {
+                      "name":  "Polygon",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://www.polygon.com/rss/index.xml",
+                      "siteUrl":  "https://www.polygon.com",
+                      "imageUrl":  "https://static0.polygonimages.com/wordpress/wp-content/uploads/social/poly-og-img.png?w=1200\u0026amp;h=675\u0026amp;fit=crop",
+                      "description":  "Latest entertainment \u0026 culture headlines from Polygon.",
+                      "popularity":  69616
+                  },
+                  {
+                      "name":  "Deadline",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://deadline.com/feed/",
+                      "siteUrl":  "https://deadline.com",
+                      "imageUrl":  "https://deadline.com/wp-content/uploads/2019/04/cropped-icon-512x512.png?w=32",
+                      "description":  "Latest entertainment \u0026 culture headlines from Deadline.",
+                      "popularity":  66400
+                  },
+                  {
+                      "name":  "Pitchfork",
+                      "category":  "Entertainment \u0026 Culture",
+                      "feedUrl":  "https://pitchfork.com/rss/news/",
+                      "siteUrl":  "https://pitchfork.com",
+                      "imageUrl":  "https://media.pitchfork.com/photos/5935a027a28a096fc4292134/16:9/w_1280,c_limit/c53c3aba.jpg",
+                      "description":  "Latest entertainment \u0026 culture headlines from Pitchfork.",
+                      "popularity":  62980
+                  },
+                  {
+                      "name":  "BBC News — Health",
+                      "category":  "Health",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/health/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/health",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Health coverage from BBC News.",
+                      "popularity":  100149
+                  },
+                  {
+                      "name":  "The New York Times — Health",
+                      "category":  "Health",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/health",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Health coverage from The New York Times.",
+                      "popularity":  95366
+                  },
+                  {
+                      "name":  "NPR — Health",
+                      "category":  "Health",
+                      "feedUrl":  "https://feeds.npr.org/1128/rss.xml",
+                      "siteUrl":  "https://www.npr.org/sections/health/",
+                      "imageUrl":  "https://media.npr.org/images/podcasts/primary/npr_generic_image_300.jpg?s=200",
+                      "description":  "Health coverage from NPR.",
+                      "popularity":  85015
+                  },
+                  {
+                      "name":  "World Health Organization",
+                      "category":  "Health",
+                      "feedUrl":  "https://www.who.int/rss-feeds/news-english.xml",
+                      "siteUrl":  "https://www.who.int",
+                      "imageUrl":  "https://cdn.who.int/media/images/default-source/infographics/logo-who.tmb-1200v.jpg?sfvrsn=2fcc68a0_35",
+                      "description":  "Latest health headlines from World Health Organization.",
+                      "popularity":  79450
+                  },
+                  {
+                      "name":  "ScienceDaily — Health \u0026 Medicine",
+                      "category":  "Health",
+                      "feedUrl":  "https://www.sciencedaily.com/rss/health_medicine.xml",
+                      "siteUrl":  "https://www.sciencedaily.com/news/health_medicine/",
+                      "imageUrl":  "https://www.sciencedaily.com/images/scidaily-logo-rss.png",
+                      "description":  "Health \u0026 Medicine coverage from ScienceDaily.",
+                      "popularity":  62127
+                  },
+                  {
+                      "name":  "STAT News",
+                      "category":  "Health",
+                      "feedUrl":  "https://www.statnews.com/feed/",
+                      "siteUrl":  "https://www.statnews.com",
+                      "imageUrl":  "https://www.statnews.com/wp-content/uploads/2023/06/cropped-STAT-Favicon-Round-32x32.png",
+                      "description":  "Latest health headlines from STAT News.",
+                      "popularity":  52870
+                  },
+                  {
+                      "name":  "KFF Health News",
+                      "category":  "Health",
+                      "feedUrl":  "https://kffhealthnews.org/feed/",
+                      "siteUrl":  "https://kffhealthnews.org",
+                      "imageUrl":  "https://kffhealthnews.org/wp-content/uploads/sites/8/2023/04/kffhealthnews-icon.png?w=32",
+                      "description":  "Latest health headlines from KFF Health News.",
+                      "popularity":  47973
+                  },
+                  {
+                      "name":  "BBC News — Politics",
+                      "category":  "Politics",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/politics/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/politics",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Politics coverage from BBC News.",
+                      "popularity":  100390
+                  },
+                  {
+                      "name":  "CNN — Politics",
+                      "category":  "Politics",
+                      "feedUrl":  "http://rss.cnn.com/rss/cnn_allpolitics.rss",
+                      "siteUrl":  "https://www.cnn.com/politics",
+                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "description":  "Politics coverage from CNN.",
+                      "popularity":  96100
+                  },
+                  {
+                      "name":  "The New York Times — Politics",
+                      "category":  "Politics",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/politics",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Politics coverage from The New York Times.",
+                      "popularity":  95607
+                  },
+                  {
+                      "name":  "The Guardian — Politics",
+                      "category":  "Politics",
+                      "feedUrl":  "https://www.theguardian.com/politics/rss",
+                      "siteUrl":  "https://www.theguardian.com/politics",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Politics coverage from The Guardian.",
+                      "popularity":  93956
+                  },
+                  {
+                      "name":  "NPR — Politics",
+                      "category":  "Politics",
+                      "feedUrl":  "https://feeds.npr.org/1014/rss.xml",
+                      "siteUrl":  "https://www.npr.org/sections/politics/",
+                      "imageUrl":  "https://media.npr.org/images/podcasts/primary/npr_generic_image_300.jpg?s=200",
+                      "description":  "Politics coverage from NPR.",
+                      "popularity":  85009
+                  },
+                  {
+                      "name":  "Vox",
+                      "category":  "Politics",
+                      "feedUrl":  "https://www.vox.com/rss/index.xml",
+                      "siteUrl":  "https://www.vox.com",
+                      "imageUrl":  "https://platform.vox.com/wp-content/uploads/sites/2/2024/08/vox_logo_rss_light_mode.png?w=150\u0026h=100\u0026crop=1",
+                      "description":  "Latest politics headlines from Vox.",
+                      "popularity":  64189
+                  },
+                  {
+                      "name":  "The Hill",
+                      "category":  "Politics",
+                      "feedUrl":  "https://thehill.com/homenews/feed/",
+                      "siteUrl":  "https://thehill.com",
+                      "imageUrl":  "https://thehill.com/wp-content/uploads/sites/2/2023/03/cropped-favicon-512px-1.png?w=32",
+                      "description":  "Latest politics headlines from The Hill.",
+                      "popularity":  55241
+                  },
+                  {
+                      "name":  "BBC News — Science \u0026 Environment",
+                      "category":  "Science",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/science_and_environment",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Science \u0026 Environment coverage from BBC News.",
+                      "popularity":  96958
+                  },
+                  {
+                      "name":  "The New York Times — Science",
+                      "category":  "Science",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/science",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Science coverage from The New York Times.",
+                      "popularity":  95466
+                  },
+                  {
+                      "name":  "The Guardian — Science",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.theguardian.com/science/rss",
+                      "siteUrl":  "https://www.theguardian.com/science",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Science coverage from The Guardian.",
+                      "popularity":  93815
+                  },
+                  {
+                      "name":  "NASA — Breaking News",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.nasa.gov/feed/",
+                      "siteUrl":  "https://www.nasa.gov",
+                      "imageUrl":  "https://www.nasa.gov/wp-content/uploads/2018/07/174116main_2006_01777_highres.jpg",
+                      "description":  "Breaking News coverage from NASA.",
+                      "popularity":  90413
+                  },
+                  {
+                      "name":  "Nature",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.nature.com/nature.rss",
+                      "siteUrl":  "https://www.nature.com",
+                      "imageUrl":  "https://www.nature.com/uploads/product/nature/rss.png",
+                      "description":  "Latest science headlines from Nature.",
+                      "popularity":  73230
+                  },
+                  {
+                      "name":  "Space.com",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.space.com/feeds/all",
+                      "siteUrl":  "https://www.space.com",
+                      "imageUrl":  null,
+                      "description":  "Latest science headlines from Space.com.",
+                      "popularity":  65933
+                  },
+                  {
+                      "name":  "ScienceDaily",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.sciencedaily.com/rss/all.xml",
+                      "siteUrl":  "https://www.sciencedaily.com",
+                      "imageUrl":  "https://www.sciencedaily.com/images/scidaily-logo-rss.png",
+                      "description":  "Latest science headlines from ScienceDaily.",
+                      "popularity":  65878
+                  },
+                  {
+                      "name":  "Live Science",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.livescience.com/feeds/all",
+                      "siteUrl":  "https://www.livescience.com",
+                      "imageUrl":  null,
+                      "description":  "Latest science headlines from Live Science.",
+                      "popularity":  64571
+                  },
+                  {
+                      "name":  "Smithsonian Magazine",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.smithsonianmag.com/rss/latest_articles/",
+                      "siteUrl":  "https://www.smithsonianmag.com",
+                      "imageUrl":  null,
+                      "description":  "Latest science headlines from Smithsonian Magazine.",
+                      "popularity":  64084
+                  },
+                  {
+                      "name":  "New Scientist",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.newscientist.com/feed/home/",
+                      "siteUrl":  "https://www.newscientist.com",
+                      "imageUrl":  "https://www.newscientist.com/wp-content/uploads/2026/09/new-scientist-social-meta-image.png",
+                      "description":  "Latest science headlines from New Scientist.",
+                      "popularity":  63765
+                  },
+                  {
+                      "name":  "Phys.org",
+                      "category":  "Science",
+                      "feedUrl":  "https://phys.org/rss-feed/",
+                      "siteUrl":  "https://phys.org",
+                      "imageUrl":  "https://phys.b-cdn.net/tmpl/v5/img/phys_308px.png",
+                      "description":  "Latest science headlines from Phys.org.",
+                      "popularity":  57428
+                  },
+                  {
+                      "name":  "Quanta Magazine",
+                      "category":  "Science",
+                      "feedUrl":  "https://www.quantamagazine.org/feed/",
+                      "siteUrl":  "https://www.quantamagazine.org",
+                      "imageUrl":  "https://www.quantamagazine.org/wp-content/uploads/2024/11/Quanta-Logo-default-Social.jpg",
+                      "description":  "Latest science headlines from Quanta Magazine.",
+                      "popularity":  55484
+                  },
+                  {
+                      "name":  "BBC Sport",
+                      "category":  "Sports",
+                      "feedUrl":  "https://feeds.bbci.co.uk/sport/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/sport",
+                      "imageUrl":  "http://news.bbc.co.uk/sol/shared/img/sport_120x60.gif",
+                      "description":  "Latest sports headlines from BBC Sport.",
+                      "popularity":  99595
+                  },
+                  {
+                      "name":  "The New York Times — Sports",
+                      "category":  "Sports",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/sports",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Sports coverage from The New York Times.",
+                      "popularity":  95419
+                  },
+                  {
+                      "name":  "The Guardian — Sport",
+                      "category":  "Sports",
+                      "feedUrl":  "https://www.theguardian.com/sport/rss",
+                      "siteUrl":  "https://www.theguardian.com/sport",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Sport coverage from The Guardian.",
+                      "popularity":  93653
+                  },
+                  {
+                      "name":  "Yahoo Sports",
+                      "category":  "Sports",
+                      "feedUrl":  "https://sports.yahoo.com/rss/",
+                      "siteUrl":  "https://sports.yahoo.com",
+                      "imageUrl":  "https://s.yimg.com/cv/apiv2/uhlog/uh.png",
+                      "description":  "Latest sports headlines from Yahoo Sports.",
+                      "popularity":  74791
+                  },
+                  {
+                      "name":  "CBS Sports",
+                      "category":  "Sports",
+                      "feedUrl":  "https://www.cbssports.com/rss/headlines/",
+                      "siteUrl":  "https://www.cbssports.com",
+                      "imageUrl":  "\n                                https://sports.cbsimg.net/fly/images/cbssports/logo-digital.png\n\n                        ",
+                      "description":  "Latest sports headlines from CBS Sports.",
+                      "popularity":  69904
+                  },
+                  {
+                      "name":  "Sky Sports — Football",
+                      "category":  "Sports",
+                      "feedUrl":  "https://www.skysports.com/rss/11095",
+                      "siteUrl":  "https://www.skysports.com/football",
+                      "imageUrl":  "https://www.skysports.com/images/site/ss-logo-07.gif",
+                      "description":  "Football coverage from Sky Sports.",
+                      "popularity":  63203
+                  },
+                  {
+                      "name":  "Sky Sports",
+                      "category":  "Sports",
+                      "feedUrl":  "https://www.skysports.com/rss/12040",
+                      "siteUrl":  "https://www.skysports.com",
+                      "imageUrl":  "https://www.skysports.com/images/site/ss-logo-07.gif",
+                      "description":  "Latest sports headlines from Sky Sports.",
+                      "popularity":  63194
+                  },
+                  {
+                      "name":  "BBC News — Technology",
+                      "category":  "Technology",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/technology/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/technology",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "Technology coverage from BBC News.",
+                      "popularity":  100603
+                  },
+                  {
+                      "name":  "The New York Times — Technology",
+                      "category":  "Technology",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/technology",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "Technology coverage from The New York Times.",
+                      "popularity":  95820
+                  },
+                  {
+                      "name":  "The Guardian — Technology",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.theguardian.com/technology/rss",
+                      "siteUrl":  "https://www.theguardian.com/technology",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Technology coverage from The Guardian.",
+                      "popularity":  94169
+                  },
+                  {
+                      "name":  "The Verge",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.theverge.com/rss/index.xml",
+                      "siteUrl":  "https://www.theverge.com",
+                      "imageUrl":  "https://platform.theverge.com/wp-content/uploads/sites/2/2025/01/verge-rss-large_80b47e.png?w=150\u0026h=150\u0026crop=1",
+                      "description":  "Latest technology headlines from The Verge.",
+                      "popularity":  88698
+                  },
+                  {
+                      "name":  "TechCrunch — Startups",
+                      "category":  "Technology",
+                      "feedUrl":  "https://techcrunch.com/category/startups/feed/",
+                      "siteUrl":  "https://techcrunch.com/category/startups/",
+                      "imageUrl":  "https://techcrunch.com/wp-content/uploads/2015/02/cropped-cropped-favicon-gradient.png?w=32",
+                      "description":  "Startups coverage from TechCrunch.",
+                      "popularity":  85499
+                  },
+                  {
+                      "name":  "Wired — Gear",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.wired.com/feed/category/gear/latest/rss",
+                      "siteUrl":  "https://www.wired.com/category/gear/",
+                      "imageUrl":  "https://media.wired.com/photos/6ab140218da5aa2e264dbbfa/16:9/w_1280,c_limit/092126-Dyson%20Jetbrush%20Leak.jpg",
+                      "description":  "Gear coverage from Wired.",
+                      "popularity":  84935
+                  },
+                  {
+                      "name":  "TechCrunch",
+                      "category":  "Technology",
+                      "feedUrl":  "https://techcrunch.com/feed/",
+                      "siteUrl":  "https://techcrunch.com",
+                      "imageUrl":  "https://techcrunch.com/wp-content/uploads/2015/02/cropped-cropped-favicon-gradient.png?w=32",
+                      "description":  "Latest technology headlines from TechCrunch.",
+                      "popularity":  83641
+                  },
+                  {
+                      "name":  "Wired",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.wired.com/feed/rss",
+                      "siteUrl":  "https://www.wired.com",
+                      "imageUrl":  "https://media.wired.com/photos/615e2b8ce78a8cd913bbaa76/16:9/w_1280,c_limit/wired_bug.jpg",
+                      "description":  "Latest technology headlines from Wired.",
+                      "popularity":  82864
+                  },
+                  {
+                      "name":  "Wired — Business",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.wired.com/feed/category/business/latest/rss",
+                      "siteUrl":  "https://www.wired.com/category/business/",
+                      "imageUrl":  "https://media.wired.com/photos/6aa3bc8f991e3505961905d1/16:9/w_1280,c_limit/WIRED-MRCSS-AaronFernandez-01.png",
+                      "description":  "Business coverage from Wired.",
+                      "popularity":  80403
+                  },
+                  {
+                      "name":  "CNET",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.cnet.com/rss/news/",
+                      "siteUrl":  "https://www.cnet.com",
+                      "imageUrl":  "https://www.cnet.com/wp-content/uploads/sites/2/cropped-favicon-480.png?w=32",
+                      "description":  "Latest technology headlines from CNET.",
+                      "popularity":  75839
+                  },
+                  {
+                      "name":  "Engadget",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.engadget.com/rss.xml",
+                      "siteUrl":  "https://www.engadget.com",
+                      "imageUrl":  "https://www.engadget.com/img/engadget-meta-image-1280x720.png",
+                      "description":  "Latest technology headlines from Engadget.",
+                      "popularity":  74088
+                  },
+                  {
+                      "name":  "Ars Technica — Gadgets",
+                      "category":  "Technology",
+                      "feedUrl":  "https://feeds.arstechnica.com/arstechnica/gadgets",
+                      "siteUrl":  "https://arstechnica.com/gadgets/",
+                      "imageUrl":  "https://cdn.arstechnica.net/wp-content/uploads/2016/10/cropped-ars-logo-512_480-60x60.png",
+                      "description":  "Gadgets coverage from Ars Technica.",
+                      "popularity":  72788
+                  },
+                  {
+                      "name":  "Ars Technica",
+                      "category":  "Technology",
+                      "feedUrl":  "https://feeds.arstechnica.com/arstechnica/index",
+                      "siteUrl":  "https://arstechnica.com",
+                      "imageUrl":  "https://cdn.arstechnica.net/wp-content/uploads/2016/10/cropped-ars-logo-512_480-60x60.png",
+                      "description":  "Latest technology headlines from Ars Technica.",
+                      "popularity":  72589
+                  },
+                  {
+                      "name":  "Mashable",
+                      "category":  "Technology",
+                      "feedUrl":  "https://mashable.com/feeds/rss/all",
+                      "siteUrl":  "https://mashable.com",
+                      "imageUrl":  "https://helios-i.mashable.com/imagery/defaults/fallback-thumbnail.fill.size_1200x675.1.png",
+                      "description":  "Latest technology headlines from Mashable.",
+                      "popularity":  72226
+                  },
+                  {
+                      "name":  "TechRadar",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.techradar.com/rss",
+                      "siteUrl":  "https://www.techradar.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from TechRadar.",
+                      "popularity":  69816
+                  },
+                  {
+                      "name":  "MacRumors",
+                      "category":  "Technology",
+                      "feedUrl":  "https://feeds.macrumors.com/MacRumors-All",
+                      "siteUrl":  "https://www.macrumors.com",
+                      "imageUrl":  "https://images.macrumors.com/article-new/2021/06/macrumors-share.jpg",
+                      "description":  "Latest technology headlines from MacRumors.",
+                      "popularity":  63924
+                  },
+                  {
+                      "name":  "Hacker News",
+                      "category":  "Technology",
+                      "feedUrl":  "https://hnrss.org/frontpage",
+                      "siteUrl":  "https://news.ycombinator.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from Hacker News.",
+                      "popularity":  61660
+                  },
+                  {
+                      "name":  "MIT Technology Review",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.technologyreview.com/feed/",
+                      "siteUrl":  "https://www.technologyreview.com",
+                      "imageUrl":  "https://wp.technologyreview.com/wp-content/uploads/2024/09/cropped-TR-Logo-Block-Centered-R.png?w=32",
+                      "description":  "Latest technology headlines from MIT Technology Review.",
+                      "popularity":  60723
+                  },
+                  {
+                      "name":  "Lifehacker",
+                      "category":  "Technology",
+                      "feedUrl":  "https://lifehacker.com/rss",
+                      "siteUrl":  "https://lifehacker.com",
+                      "imageUrl":  "https://lifehacker.com/images/lifehacker-logo.svg",
+                      "description":  "Latest technology headlines from Lifehacker.",
+                      "popularity":  60509
+                  },
+                  {
+                      "name":  "9to5Mac",
+                      "category":  "Technology",
+                      "feedUrl":  "https://9to5mac.com/feed/",
+                      "siteUrl":  "https://9to5mac.com",
+                      "imageUrl":  "https://9to5mac.com/wp-content/uploads/sites/6/2019/10/cropped-cropped-mac1-1.png?w=32",
+                      "description":  "Latest technology headlines from 9to5Mac.",
+                      "popularity":  60220
+                  },
+                  {
+                      "name":  "PCWorld",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.pcworld.com/index.rss",
+                      "siteUrl":  "https://www.pcworld.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from PCWorld.",
+                      "popularity":  60219
+                  },
+                  {
+                      "name":  "ZDNet",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.zdnet.com/news/rss.xml",
+                      "siteUrl":  "https://www.zdnet.com",
+                      "imageUrl":  "https://www.zdnet.com/wp-content/uploads/sites/3/cropped-ZDNET-512Yellow.png?w=32",
+                      "description":  "Latest technology headlines from ZDNet.",
+                      "popularity":  59298
+                  },
+                  {
+                      "name":  "Android Authority",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.androidauthority.com/feed/",
+                      "siteUrl":  "https://www.androidauthority.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from Android Authority.",
+                      "popularity":  58719
+                  },
+                  {
+                      "name":  "9to5Google",
+                      "category":  "Technology",
+                      "feedUrl":  "https://9to5google.com/feed/",
+                      "siteUrl":  "https://9to5google.com",
+                      "imageUrl":  "https://9to5google.com/wp-content/uploads/sites/4/2017/03/favicon-bg-none-face-white.png?w=32",
+                      "description":  "Latest technology headlines from 9to5Google.",
+                      "popularity":  58552
+                  },
+                  {
+                      "name":  "The Register",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.theregister.com/headlines.atom",
+                      "siteUrl":  "https://www.theregister.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from The Register.",
+                      "popularity":  58140
+                  },
+                  {
+                      "name":  "Android Police",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.androidpolice.com/feed/",
+                      "siteUrl":  "https://www.androidpolice.com",
+                      "imageUrl":  "https://static0.anpoimages.com/wordpress/wp-content/uploads/social/ap-og-img.png?w=1200\u0026amp;h=675\u0026amp;fit=crop",
+                      "description":  "Latest technology headlines from Android Police.",
+                      "popularity":  57354
+                  },
+                  {
+                      "name":  "XDA Developers",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.xda-developers.com/feed/",
+                      "siteUrl":  "https://www.xda-developers.com",
+                      "imageUrl":  "https://static0.xdaimages.com/wordpress/wp-content/uploads/social/xda-og-img.png?w=1200\u0026amp;h=675\u0026amp;fit=crop",
+                      "description":  "Latest technology headlines from XDA Developers.",
+                      "popularity":  56424
+                  },
+                  {
+                      "name":  "Tom\u0027s Hardware",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.tomshardware.com/feeds/all",
+                      "siteUrl":  "https://www.tomshardware.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from Tom\u0027s Hardware.",
+                      "popularity":  55706
+                  },
+                  {
+                      "name":  "The Next Web",
+                      "category":  "Technology",
+                      "feedUrl":  "https://thenextweb.com/feed",
+                      "siteUrl":  "https://thenextweb.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from The Next Web.",
+                      "popularity":  53617
+                  },
+                  {
+                      "name":  "Techmeme",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.techmeme.com/feed.xml",
+                      "siteUrl":  "https://www.techmeme.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from Techmeme.",
+                      "popularity":  53157
+                  },
+                  {
+                      "name":  "BleepingComputer",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.bleepingcomputer.com/feed/",
+                      "siteUrl":  "https://www.bleepingcomputer.com",
+                      "imageUrl":  "https://www.bleepstatic.com/logo/bleepingcomputer-logo.png",
+                      "description":  "Latest technology headlines from BleepingComputer.",
+                      "popularity":  52698
+                  },
+                  {
+                      "name":  "Slashdot",
+                      "category":  "Technology",
+                      "feedUrl":  "http://rss.slashdot.org/Slashdot/slashdotMain",
+                      "siteUrl":  "https://slashdot.org",
+                      "imageUrl":  "https://a.fsdn.com/sd/topics/topicslashdot.gif",
+                      "description":  "Latest technology headlines from Slashdot.",
+                      "popularity":  52413
+                  },
+                  {
+                      "name":  "Krebs on Security",
+                      "category":  "Technology",
+                      "feedUrl":  "https://krebsonsecurity.com/feed/",
+                      "siteUrl":  "https://krebsonsecurity.com",
+                      "imageUrl":  null,
+                      "description":  "Latest technology headlines from Krebs on Security.",
+                      "popularity":  50222
+                  },
+                  {
+                      "name":  "TechSpot",
+                      "category":  "Technology",
+                      "feedUrl":  "https://www.techspot.com/backend.xml",
+                      "siteUrl":  "https://www.techspot.com",
+                      "imageUrl":  "https://www.techspot.com/images/techspot-rss-logo-small2.png",
+                      "description":  "Latest technology headlines from TechSpot.",
+                      "popularity":  49499
+                  },
+                  {
+                      "name":  "Wccftech",
+                      "category":  "Technology",
+                      "feedUrl":  "https://wccftech.com/feed/",
+                      "siteUrl":  "https://wccftech.com",
+                      "imageUrl":  "https://cdn.wccftech.com/wp-content/uploads/2022/12/cover-home-1.jpg",
+                      "description":  "Latest technology headlines from Wccftech.",
+                      "popularity":  46417
+                  },
+                  {
+                      "name":  "ReadWrite",
+                      "category":  "Technology",
+                      "feedUrl":  "https://readwrite.com/feed/",
+                      "siteUrl":  "https://readwrite.com",
+                      "imageUrl":  "https://readwrite.com/wp-content/uploads/2024/10/cropped-readwrite-favicon-32x32.png",
+                      "description":  "Latest technology headlines from ReadWrite.",
+                      "popularity":  44545
+                  },
+                  {
+                      "name":  "The Guardian — Weather",
+                      "category":  "Weather",
+                      "feedUrl":  "https://www.theguardian.com/uk/weather/rss",
+                      "siteUrl":  "https://www.theguardian.com/uk/weather",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "Weather coverage from The Guardian.",
+                      "popularity":  94108
+                  },
+                  {
+                      "name":  "National Hurricane Center — Atlantic",
+                      "category":  "Weather",
+                      "feedUrl":  "https://www.nhc.noaa.gov/index-at.xml",
+                      "siteUrl":  "https://www.nhc.noaa.gov",
+                      "imageUrl":  "https://www.nhc.noaa.gov/gifs/xml_logo_nhc.gif",
+                      "description":  "Atlantic coverage from National Hurricane Center.",
+                      "popularity":  73494
+                  },
+                  {
+                      "name":  "National Hurricane Center — East Pacific",
+                      "category":  "Weather",
+                      "feedUrl":  "https://www.nhc.noaa.gov/index-ep.xml",
+                      "siteUrl":  "https://www.nhc.noaa.gov",
+                      "imageUrl":  "https://www.nhc.noaa.gov/gifs/xml_logo_nhc.gif",
+                      "description":  "East Pacific coverage from National Hurricane Center.",
+                      "popularity":  73493
+                  },
+                  {
+                      "name":  "Watts Up With That",
+                      "category":  "Weather",
+                      "feedUrl":  "https://wattsupwiththat.com/feed/",
+                      "siteUrl":  "https://wattsupwiththat.com",
+                      "imageUrl":  "https://i0.wp.com/wattsupwiththat.com/wp-content/uploads/2018/05/cropped-WUWT-logo.jpg?fit=32%2C32\u0026quality=83\u0026ssl=1",
+                      "description":  "Latest weather headlines from Watts Up With That.",
+                      "popularity":  45247
+                  },
+                  {
+                      "name":  "Severe Weather Europe",
+                      "category":  "Weather",
+                      "feedUrl":  "https://www.severe-weather.eu/feed/",
+                      "siteUrl":  "https://www.severe-weather.eu",
+                      "imageUrl":  "https://www.severe-weather.eu/wp-content/uploads/2025/12/cropped-favicon-32x32.png",
+                      "description":  "Latest weather headlines from Severe Weather Europe.",
+                      "popularity":  43327
+                  },
+                  {
+                      "name":  "BBC News — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://feeds.bbci.co.uk/news/world/rss.xml",
+                      "siteUrl":  "https://www.bbc.com/news/world",
+                      "imageUrl":  "https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif",
+                      "description":  "World coverage from BBC News.",
+                      "popularity":  100071
+                  },
+                  {
+                      "name":  "CNN — World",
+                      "category":  "World News",
+                      "feedUrl":  "http://rss.cnn.com/rss/edition_world.rss",
+                      "siteUrl":  "https://www.cnn.com/world",
+                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "description":  "World coverage from CNN.",
+                      "popularity":  95897
+                  },
+                  {
+                      "name":  "The New York Times — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+                      "siteUrl":  "https://www.nytimes.com/section/world",
+                      "imageUrl":  "https://static01.nyt.com/images/misc/NYT_logo_rss_250x40.png",
+                      "description":  "World coverage from The New York Times.",
+                      "popularity":  95288
+                  },
+                  {
+                      "name":  "The Guardian — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://www.theguardian.com/world/rss",
+                      "siteUrl":  "https://www.theguardian.com/world",
+                      "imageUrl":  "https://assets.guim.co.uk/images/guardian-logo-rss.c45beb1bafa34b347ac333af2e6fe23f.png",
+                      "description":  "World coverage from The Guardian.",
+                      "popularity":  93637
+                  },
+                  {
+                      "name":  "NPR — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://feeds.npr.org/1004/rss.xml",
+                      "siteUrl":  "https://www.npr.org/sections/world/",
+                      "imageUrl":  "https://media.npr.org/images/podcasts/primary/npr_generic_image_300.jpg?s=200",
+                      "description":  "World coverage from NPR.",
+                      "popularity":  85008
+                  },
+                  {
+                      "name":  "Al Jazeera",
+                      "category":  "World News",
+                      "feedUrl":  "https://www.aljazeera.com/xml/rss/all.xml",
+                      "siteUrl":  "https://www.aljazeera.com",
+                      "imageUrl":  "https://www.aljazeera.com/images/logo_aje.png",
+                      "description":  "Latest world news headlines from Al Jazeera.",
+                      "popularity":  83944
+                  },
+                  {
+                      "name":  "Sky News — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://feeds.skynews.com/feeds/rss/world.xml",
+                      "siteUrl":  "https://news.sky.com/world",
+                      "imageUrl":  "https://e3.365dm.com/skynews/logo.png",
+                      "description":  "World coverage from Sky News.",
+                      "popularity":  76372
+                  },
+                  {
+                      "name":  "The Times of India — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+                      "siteUrl":  "https://timesofindia.indiatimes.com/world",
+                      "imageUrl":  "https://timesofindia.indiatimes.com/photo/507610.cms",
+                      "description":  "World coverage from The Times of India.",
+                      "popularity":  76282
+                  },
+                  {
+                      "name":  "Deutsche Welle — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://rss.dw.com/rdf/rss-en-world",
+                      "siteUrl":  "https://www.dw.com/en/top-stories/world/s-1429",
+                      "imageUrl":  "https://rss.dw.com/images/DW-L-RGB_whitebg.png",
+                      "description":  "World coverage from Deutsche Welle.",
+                      "popularity":  63296
+                  },
+                  {
+                      "name":  "The Independent — World",
+                      "category":  "World News",
+                      "feedUrl":  "https://www.independent.co.uk/news/world/rss",
+                      "siteUrl":  "https://www.independent.co.uk/news/world",
+                      "imageUrl":  "https://www.independent.co.uk/img/shortcut-icons/icon-96x96.png",
+                      "description":  "World coverage from The Independent.",
+                      "popularity":  62292
+                  },
+                  {
+                      "name":  "France 24",
+                      "category":  "World News",
+                      "feedUrl":  "https://www.france24.com/en/rss",
+                      "siteUrl":  "https://www.france24.com/en/",
+                      "imageUrl":  "https://s.france24.com/media/display/99f8a93a-e6c1-11ee-9116-005056bf30b7/w:1280/p:16x9/img-default-F24.jpg",
+                      "description":  "Latest world news headlines from France 24.",
+                      "popularity":  57857
+                  }
+              ]
+}
