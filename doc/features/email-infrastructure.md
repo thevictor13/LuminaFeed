@@ -18,7 +18,10 @@ covers Identity account emails (confirmation, password reset); article-notificat
   are **HTML-encoded** (`HtmlEncoder`) so untrusted values (future article titles/links) can't inject markup;
   `bodyHtml` is treated as trusted HTML that callers must pass already-safe.
 - **`IdentityEmailSender`** — implements `IEmailSender<ApplicationUser>`; renders confirmation / password-reset links
-  (and reset codes) through `EmailLayout` and delegates to `IMailSender`.
+  (and reset codes) through `EmailLayout` and delegates to `IMailSender`. Every email is sent **multipart**: the HTML
+  body plus a **plain-text alternative** (better deliverability + text-only clients). Any value it interpolates directly
+  into the HTML (the fallback link anchor, the reset code) is **HTML-encoded** with `HtmlEncoder`, mirroring
+  `EmailLayout`, so those inputs can't inject markup.
 
 ## Wiring (`Program.cs`)
 
@@ -30,4 +33,5 @@ covers Identity account emails (confirmation, password reset); article-notificat
 
 `EmailLayout` produces a table-based (not div-based) shell with the VML namespace, emits both button variants, and
 HTML-encodes heading/text/URL; `MailKitMailSender.BuildMessage` sets From/To/Subject/HtmlBody, and `SendAsync` logs +
-rethrows on transport failure; `IdentityEmailSender` builds a table-based confirmation email containing the link.
+rethrows on transport failure; `IdentityEmailSender` builds a table-based confirmation email containing the link,
+attaches a non-empty plain-text alternative (link/code), and HTML-encodes a hostile interpolated link.

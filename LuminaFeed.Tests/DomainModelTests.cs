@@ -1,7 +1,13 @@
 using LuminaFeed.Data;
 using LuminaFeed.Domain;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations.Internal;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LuminaFeed.Tests;
 
@@ -23,6 +29,13 @@ public sealed class DomainModelTests : IDisposable
 
     private ApplicationDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
+
+    /// <summary>Returns a unique key each call so the model is always rebuilt (never served from the
+    /// process-wide model cache) — used by the drift test to build the app-accurate Version3 model.</summary>
+    private sealed class UniqueModelCacheKeyFactory : IModelCacheKeyFactory
+    {
+        public object Create(DbContext context, bool designTime) => Guid.NewGuid();
+    }
 
     public void Dispose() => _connection.Dispose();
 
@@ -155,6 +168,58 @@ public sealed class DomainModelTests : IDisposable
             Assert.Empty(ctx.Articles);
             Assert.Empty(ctx.Subscriptions);
         }
+    }
+
+    [Fact]
+    public void Model_MatchesMigrationSnapshot_NoDrift()
+    {
+        // Guards against schema drift: the EF model must match the migrations' snapshot, i.e.
+        // `dotnet ef migrations add` would produce an empty migration. HostBootTests legitimately
+        // suppresses PendingModelChangesWarning (a WebApplicationFactory false positive), so this is
+        // the real drift check — it compares the snapshot's relational model to the current one, the
+        // same diff the CLI performs.
+        //
+        // The model must be built exactly as the app builds it: Program.cs sets
+        // IdentityOptions.Stores.SchemaVersion = Version3 (which adds the passkeys table), so a bare
+        // `new ApplicationDbContext(...)` would build a *default*-schema model and report a spurious
+        // difference. We therefore resolve the context from an Identity-configured provider.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddDbContext<ApplicationDbContext>(o => o
+            .UseSqlite(_connection)
+            // EF caches the model per context type across the process, and IdentityOptions.SchemaVersion
+            // is not part of that key — so a sibling test that builds a default-schema ApplicationDbContext
+            // first would poison the cache. A unique cache key forces a fresh Version3 build here.
+            .ReplaceService<IModelCacheKeyFactory, UniqueModelCacheKeyFactory>());
+        services.AddIdentityCore<ApplicationUser>(o => o.Stores.SchemaVersion = IdentitySchemaVersions.Version3)
+            .AddEntityFrameworkStores<ApplicationDbContext>();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var ctx = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var snapshot = ctx.GetService<IMigrationsAssembly>().ModelSnapshot;
+        Assert.NotNull(snapshot);
+
+        var snapshotModel = snapshot!.Model;
+        if (snapshotModel is IMutableModel mutableModel)
+        {
+            snapshotModel = mutableModel.FinalizeModel();
+        }
+        snapshotModel = ctx.GetService<IModelRuntimeInitializer>().Initialize(snapshotModel);
+
+        var currentModel = ctx.GetService<IDesignTimeModel>().Model;
+
+#pragma warning disable EF1001 // IMigrationsModelDiffer is an internal EF API, used here only as a test-time drift check.
+        var differ = ctx.GetService<IMigrationsModelDiffer>();
+        var ops = differ.GetDifferences(
+            snapshotModel.GetRelationalModel(),
+            currentModel.GetRelationalModel());
+#pragma warning restore EF1001
+
+        var summary = string.Join("; ", ops.Select(o => o.GetType().Name));
+        Assert.False(
+            ops.Count > 0,
+            $"The EF model has changes not captured by a migration ({ops.Count}): {summary}");
     }
 
     [Fact]

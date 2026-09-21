@@ -42,6 +42,7 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 - [x] **G0.6 — Real email infra.** Replace `IdentityNoOpEmailSender` with a **MailKit** `IEmailSender<ApplicationUser>`; establish the **table-based, Outlook-safe** email layout foundation. Unblocks the real confirmation flow. _(needs G0.5; parallel with G0.3/G0.4)_
 - [x] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. Also adds a **bootstrap admin seeder** (`AdminUserSeeder` + optional `AdminSeed` config) so the admin area is reachable on a fresh DB. _(needs G0.3 + G0.R)_ ✅ **Done** — embedded `rss-feeds.json` seeded via `DatabaseSeeder` (insert-missing-only, idempotent); startup runs `MigrateAsync` + seed (⚠️ auto-migrate is a temporary, not-production-ready shortcut). Plan: [`G0.7-seed-data.md`](./G0.7-seed-data.md); feature: [`../features/seed-data.md`](../features/seed-data.md).
 - [x] 🗂 **G0.8 — Phase 0 review & remediation.** Senior architecture review of the Phase-0 commits and the fixes it surfaced: correct startup cancellation tokens, MailKit error handling, admin-seed fail-fast, a `(CategoryId, Popularity)` index for the default sort, `UserId` max length + single DB cascade path into `Subscriptions` (SQL-Server portability), targeted entity encapsulation, HTML-encoded email layout, `global.json` SDK pin, a real host-boot integration test, and the missing Phase-0 feature docs. _(after G0.1–G0.7)_ — see [`G0.8-phase-0-remediation.md`](./G0.8-phase-0-remediation.md).
+- [x] 🗂 **G0.9 — Phase 0 review follow-up & polish.** Second independent review (verdict: Phase 0 is solid). In-scope polish: plain-text alternative on Identity emails; HTML-encode the values `IdentityEmailSender` interpolates into HTML; a direct-context `HasPendingModelChanges` drift guard test (the host-boot test suppresses the WAF false positive); and doc nits. Also **records the deferred stock-template-UI cleanup as an S2 checklist** and the **A3 security-stamp guard** (below). _(after G0.8)_ — see [`G0.9-phase-0-review-followup.md`](./G0.9-phase-0-review-followup.md).
 
 **Groundwork parallelization:** `G0.R` first and gating. Then `G0.1 → {G0.2, G0.3, G0.5}`; `G0.4` after G0.3, `G0.6` after G0.5, and `G0.7` once G0.3 is done (G0.R already complete). `G0.8` reviews the finished phase.
 
@@ -54,6 +55,10 @@ One deliberately thin path end-to-end to de-risk integration. Everything here is
 
 - [ ] **S1 — Admin: create category + feed.** Minimal create/list only. _(needs G0.3, G0.4)_
 - [ ] **S2 — Public: minimal feed list.** Show the feed as a card. No ordering/filter/pagination. _(needs S1)_
+  **Also removes the leftover stock-template demo UI** (deferred here from the G0.9 review) when the real public view
+  replaces it: delete `Components/Pages/{Counter,Weather,Auth}.razor`; replace `Home.razor`'s "Hello, world!"
+  placeholder; drop the **Counter / Weather / Auth Required** links in `Components/Layout/NavMenu.razor`; and remove the
+  dead `@using System.Net.Http[.Json]` imports in `Components/_Imports.razor`.
 - [ ] **S3 — Subscribe (email only).** Signed-in user persists an email subscription; skip dialog/Slack/redirect polish. _(needs G0.3, S2)_
 - [ ] **S4 — Polling (minimal).** Background service polls the subscribed feed on interval, fetches items, persists `Article`s. _(needs G0.3, G0.5, S3)_
 - [ ] **S5 — Email notification (minimal).** `EmailNotificationService` (behind `INotificationService`) sends a plain new-article email to the subscriber. _(needs G0.6, S4)_
@@ -71,7 +76,7 @@ dependencies are called out.
 ### Track A — Admin
 - [ ] 🗂 **A1 — Category CRUD** (edit/delete + validation). _(needs S1)_
 - [ ] 🗂 **A2 — Feed CRUD** (edit/delete, image, category dropdown). _(needs S1)_
-- [ ] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_
+- [ ] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_ **Security-stamp guard (from G0.9):** the admin claim is baked into the auth cookie by `AdminClaimsPrincipalFactory`, so when A3 toggles a user's `IsAdmin`, it must call `UserManager.UpdateSecurityStampAsync` so `IdentityRevalidatingAuthenticationStateProvider` regenerates the principal — otherwise the change won't take effect until the user's next sign-in.
 
 ### Track B — Public UX
 - [ ] 🗂 **B1 — Feed list by category** (cards + image, 5/category, "more" +5, single-row desktop / wrap mobile). _(needs S2, A2)_

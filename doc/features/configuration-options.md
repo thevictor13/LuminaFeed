@@ -19,11 +19,12 @@ Strongly-typed, startup-validated configuration for SMTP, polling, the unsubscri
 
 ## Config files
 
-- **`appsettings.json`** (base, committed) ships with **empty** `Smtp:Host`, `Unsubscribe:HmacSecret`, and `AdminSeed`.
-  This base config is therefore **intentionally non-bootable on its own**: a start with only this file fails
-  `ValidateOnStart` until real values are supplied. **Production must provide `Smtp:Host` and `Unsubscribe:HmacSecret`**
-  (and, if an admin is wanted, `AdminSeed:*`) via environment variables or user-secrets. A `UserSecretsId` exists in the
-  csproj for this.
+- **`appsettings.json`** (base, committed) populates the harmless SMTP defaults (`FromAddress`, `FromName`, `Port`) but
+  leaves **`Smtp:Host`**, **`Unsubscribe:HmacSecret`**, and the `AdminSeed:*` values **empty**. Because `Smtp:Host` and
+  `Unsubscribe:HmacSecret` are required, this base config is **intentionally non-bootable on its own**: a start with only
+  this file fails `ValidateOnStart` until they are supplied. **Production must provide `Smtp:Host` and
+  `Unsubscribe:HmacSecret`** (and, if an admin is wanted, `AdminSeed:*`) via environment variables or user-secrets. A
+  `UserSecretsId` exists in the csproj for this.
 - **`appsettings.Development.json`** (committed) supplies local dev values: Papercut SMTP (`localhost:25`, no TLS/auth),
   a throwaway dev `Unsubscribe:HmacSecret`, and a local dev admin (`admin@luminafeed.local`). These are **dev-only,
   clearly labelled placeholder values** and must never be loaded in a non-Development environment.

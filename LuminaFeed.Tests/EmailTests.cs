@@ -145,4 +145,52 @@ public class IdentityEmailSenderTests
         Assert.Contains(link, mail.Sent.HtmlBody);
         Assert.Contains("<table", mail.Sent.HtmlBody);
     }
+
+    [Fact]
+    public async Task SendConfirmationLinkAsync_IncludesPlainTextAlternative_WithLink()
+    {
+        var mail = new CapturingMailSender();
+        var sender = new IdentityEmailSender(mail);
+        var user = new ApplicationUser { UserName = "alice", Email = "alice@example.test" };
+        const string link = "https://example.test/Account/ConfirmEmail?code=abc";
+
+        await sender.SendConfirmationLinkAsync(user, user.Email, link);
+
+        Assert.NotNull(mail.Sent!.TextBody);
+        Assert.False(string.IsNullOrWhiteSpace(mail.Sent.TextBody));
+        Assert.Contains(link, mail.Sent.TextBody!);
+        // The plain-text alternative is exactly that — text, not the HTML shell.
+        Assert.DoesNotContain("<table", mail.Sent.TextBody);
+    }
+
+    [Fact]
+    public async Task SendPasswordResetCodeAsync_IncludesPlainTextAlternative_WithCode()
+    {
+        var mail = new CapturingMailSender();
+        var sender = new IdentityEmailSender(mail);
+        var user = new ApplicationUser { UserName = "alice", Email = "alice@example.test" };
+        const string code = "RESET-CODE-123";
+
+        await sender.SendPasswordResetCodeAsync(user, user.Email, code);
+
+        Assert.Contains(code, mail.Sent!.TextBody!);
+        Assert.Contains(code, mail.Sent.HtmlBody);
+    }
+
+    [Fact]
+    public async Task SendConfirmationLinkAsync_HtmlEncodesInterpolatedLink()
+    {
+        var mail = new CapturingMailSender();
+        var sender = new IdentityEmailSender(mail);
+        var user = new ApplicationUser { UserName = "alice", Email = "alice@example.test" };
+        // A hostile link value must not break out of the HTML it is interpolated into.
+        const string link = "https://example.test/confirm?code=\"><script>alert(1)</script>";
+
+        await sender.SendConfirmationLinkAsync(user, user.Email, link);
+
+        Assert.DoesNotContain("<script>alert(1)</script>", mail.Sent!.HtmlBody);
+        Assert.Contains("&lt;script&gt;", mail.Sent.HtmlBody);
+        // The plain-text alternative carries the raw link (no HTML context to escape).
+        Assert.Contains(link, mail.Sent.TextBody!);
+    }
 }
