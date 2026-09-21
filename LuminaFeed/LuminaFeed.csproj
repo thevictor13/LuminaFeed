@@ -10,10 +10,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <None Update="Data\app.db" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
-    </ItemGroup>
-
-    <ItemGroup>
         <InternalsVisibleTo Include="LuminaFeed.Tests" />
     </ItemGroup>
 

@@ -26,10 +26,24 @@ edit that JSON and rebuild.
 - Feeds resolve their `CategoryId` from the seeded categories; a feed whose category is missing is logged and skipped.
 - GUID v7 ids are generated client-side via `EntityBase`.
 
+## Admin user seed (`AdminUserSeeder`)
+
+So the admin area (`/admin`, guarded by the `Admin` policy) is reachable on a fresh database, a bootstrap admin
+account is seeded from the optional **`AdminSeed`** config section (`AdminSeedOptions`):
+
+- **Config-driven & safe by default**: only runs when both `AdminSeed:Email` and `AdminSeed:Password` are set, so
+  **no admin is created unless explicitly configured**. `appsettings.Development.json` supplies a local dev admin
+  (`admin@luminafeed.local`); the base `appsettings.json` leaves it empty. Production must supply values out of
+  source control (env/user-secrets) or no admin is seeded.
+- **Idempotent**: creates the user (with `EmailConfirmed = true`, so it can sign in under `RequireConfirmedAccount`)
+  if missing; promotes an existing user to admin if needed; otherwise does nothing.
+
 ## Startup wiring (`Program.cs`)
 
-After the app is built, in a DI scope: `Database.MigrateAsync()` then `DatabaseSeeder.SeedAsync(...)`, in **all
-environments**. A run logs `Seed complete: N categories added, M feeds added, K feeds already present.`
+After the app is built, in a DI scope: `Database.MigrateAsync()`, then `DatabaseSeeder.SeedAsync(...)`, then
+`AdminUserSeeder.SeedAsync()`, in **all environments**. A run logs
+`Seed complete: N categories added, M feeds added, K feeds already present.` and, when configured,
+`Seeded admin user '<email>'.`
 
 > ⚠️ **Not production-ready.** Auto-migrating on startup is a deliberate temporary shortcut for this stage. It has no
 > review gate, races across multiple instances, and no rollback path. Replace with a controlled migration step
@@ -39,4 +53,5 @@ environments**. A run logs `Seed complete: N categories added, M feeds added, K 
 
 Catalogue integrity (counts, referential integrity, distinct popularity/URLs, required fields); DB population with
 resolved categories; idempotency; preservation of existing rows on re-seed; and pickup of newcomers after a partial
-seed.
+seed. `AdminUserSeederTests.cs` covers admin creation when configured, skip when unconfigured, promotion of an
+existing user, and idempotency.

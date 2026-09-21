@@ -32,6 +32,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddScoped<DatabaseSeeder>();
+builder.Services.AddScoped<AdminUserSeeder>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -64,6 +65,9 @@ builder.Services.AddOptions<UnsubscribeOptions>()
     .Bind(builder.Configuration.GetSection(UnsubscribeOptions.SectionName))
     .ValidateDataAnnotations()
     .ValidateOnStart();
+// Optional bootstrap admin account (no validation: empty means "no admin seeded").
+builder.Services.AddOptions<AdminSeedOptions>()
+    .Bind(builder.Configuration.GetSection(AdminSeedOptions.SectionName));
 
 var app = builder.Build();
 
@@ -75,6 +79,7 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     await services.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
     await services.GetRequiredService<DatabaseSeeder>().SeedAsync(app.Lifetime.ApplicationStopping);
+    await services.GetRequiredService<AdminUserSeeder>().SeedAsync();
 }
 
 // Configure the HTTP request pipeline.
