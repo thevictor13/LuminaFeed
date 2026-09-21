@@ -3,3 +3,13 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# JetBrains Rider IDE
+.idea/
+
+# SQLite transient files
+*.db-shm
+*.db-wal
+
+# Editor backups
+*.bak
