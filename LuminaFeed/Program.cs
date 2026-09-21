@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using LuminaFeed.Components;
 using LuminaFeed.Components.Account;
 using LuminaFeed.Data;
+using LuminaFeed.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +39,20 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+
+// Strongly-typed configuration, validated at startup.
+builder.Services.AddOptions<SmtpOptions>()
+    .Bind(builder.Configuration.GetSection(SmtpOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<PollingOptions>()
+    .Bind(builder.Configuration.GetSection(PollingOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+builder.Services.AddOptions<UnsubscribeOptions>()
+    .Bind(builder.Configuration.GetSection(UnsubscribeOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 var app = builder.Build();
 
