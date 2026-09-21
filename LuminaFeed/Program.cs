@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using LuminaFeed.Authorization;
 using LuminaFeed.Components;
 using LuminaFeed.Components.Account;
 using LuminaFeed.Data;
@@ -37,7 +38,12 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    .AddClaimsPrincipalFactory<AdminClaimsPrincipalFactory>();
+
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AdminAuthorization.PolicyName, policy =>
+        policy.RequireClaim(AdminAuthorization.ClaimType, AdminAuthorization.ClaimValue));
 
 // Real email delivery via MailKit (replaces the template's no-op sender).
 builder.Services.AddSingleton<IMailSender, MailKitMailSender>();

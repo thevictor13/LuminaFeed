@@ -37,7 +37,7 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 - [x] **G0.1 — Packages & test project.** Add ErrorOr, FluentValidation, Ardalis.SmartEnum (and MailKit, Slack.Webhooks). Add an **xUnit** test project to the solution. _(foundational; blocks all code)_
 - [x] **G0.2 — Folder skeleton.** Create `Domain/`, `Services/`, `Components/Admin/`. _(trivial; with G0.1)_
 - [x] 🗂 **G0.3 — Domain model + persistence.** Extend `ApplicationUser` (`IsAdmin`); add `Category`, `Feed` (incl. a **fixed `Popularity`** figure + an **image URL**), `Subscription` (per-channel prefs + Slack webhook), `Article` (incl. image URL); GUID-v7 ID convention; DbContext `DbSet`s + EF configs; **initial domain migration**. Schema only — seed data lands in G0.7. _(informed by G0.R; core prerequisite for nearly everything)_ — see [`G0.3-domain-model.md`](./G0.3-domain-model.md).
-- [ ] **G0.4 — Admin authorization.** Turn `IsAdmin` into an `"Admin"` authorization policy; guard an admin area + nav section. _(needs G0.3)_
+- [x] **G0.4 — Admin authorization.** Turn `IsAdmin` into an `"Admin"` authorization policy; guard an admin area + nav section. _(needs G0.3)_
 - [x] **G0.5 — Config & options.** appsettings sections + typed options: Development **Papercut** SMTP (localhost), polling interval, HMAC unsubscribe secret. _(with G0.3; parallel)_
 - [x] **G0.6 — Real email infra.** Replace `IdentityNoOpEmailSender` with a **MailKit** `IEmailSender<ApplicationUser>`; establish the **table-based, Outlook-safe** email layout foundation. Unblocks the real confirmation flow. _(needs G0.5; parallel with G0.3/G0.4)_
 - [ ] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. _(needs G0.3 + G0.R)_
