@@ -59,10 +59,12 @@ One deliberately thin path end-to-end to de-risk integration. Everything here is
 - [x] **S2 — Public: minimal feed list.** Show the feed as a card. No ordering/filter/pagination. _(needs S1)_ ✅ **Done** — `/` lists every feed as a card grouped by category (fixed popularity order) via `IFeedService.ListByCategoryAsync`; template sample pages removed. Feature: [`../features/public-feed-list.md`](../features/public-feed-list.md).
 - [x] **S3 — Subscribe (email only).** Signed-in user persists an email subscription; skip dialog/Slack/redirect polish. _(needs G0.3, S2)_ ✅ **Done** — `ISubscriptionService` (idempotent email subscribe + a minimal whole-row unsubscribe); Subscribe / red Unsubscribe button on each card, anonymous → login with `ReturnUrl`. Feature: [`../features/subscriptions.md`](../features/subscriptions.md).
 - [x] **S4 — Polling (minimal).** Background service polls the subscribed feed on interval, fetches items, persists `Article`s. _(needs G0.3, G0.5, S3)_ ✅ **Done** — `FeedPollingBackgroundService` → `IFeedPollingService` (active feeds only, per-feed isolation, `(FeedId, ExternalId)` de-dup, email-keyed result, **first-poll cap** of the newest 5) over `HttpFeedFetcher` + a hand-rolled RSS/Atom/RDF `FeedParser`; live-validated on 114/115 seeded feeds. Feature: [`../features/feed-polling.md`](../features/feed-polling.md).
-- [ ] **S5 — Email notification (minimal).** `EmailNotificationService` (behind `INotificationService`) sends a plain new-article email to the subscriber. _(needs G0.6, S4)_
+- [x] **S5 — Email notification (minimal).** `EmailNotificationService` (behind `INotificationService`) sends a plain new-article email to the subscriber. _(needs G0.6, S4)_ ✅ **Done** — `INotificationService` + `NotificationChannel` (SmartEnum) + `EmailNotificationService` (one table-based digest per subscriber per pass, HTML-encoded, text alternative); the polling loop dispatches the email-keyed poll result. Feature: [`../features/notifications.md`](../features/notifications.md).
 
 **Definition of done (skeleton):** admin adds a feed → it appears publicly → a signed-in user
 subscribes → polling fetches new articles → the user receives an email. Running product, end-to-end.
+
+✅ **Met** — covered end to end through the real host by `WalkingSkeletonTests`, and exercised once against live publishers (RSS, Atom and RDF). Deliberate skeleton gaps handed to Phase 2: no retry of a failed digest and no conditional GETs (C4), no unsubscribe link/headers (C5), whole-row unsubscribe only (C1/C5), New Scientist answers 406 to .NET's HTTP stack (C4).
 
 ---
 

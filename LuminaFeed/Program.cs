@@ -12,6 +12,7 @@ using LuminaFeed.Options;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
 
@@ -73,6 +74,9 @@ builder.Services.AddAuthorizationBuilder()
 // Real email delivery via MailKit (replaces the template's no-op sender).
 builder.Services.AddSingleton<IMailSender, MailKitMailSender>();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityEmailSender>();
+
+// New-article notifications: one INotificationService per channel (Slack joins with C2).
+builder.Services.AddSingleton<INotificationService, EmailNotificationService>();
 
 // Strongly-typed configuration, validated at startup.
 builder.Services.AddOptions<SmtpOptions>()

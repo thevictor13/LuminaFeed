@@ -1,11 +1,14 @@
+using LuminaFeed.Domain;
 using LuminaFeed.Options;
+using LuminaFeed.Services.Notifications;
 using Microsoft.Extensions.Options;
 
 namespace LuminaFeed.Services.Polling;
 
 /// <summary>
 /// Drives <see cref="IFeedPollingService"/>: one pass at startup, then one every
-/// <see cref="PollingOptions.Interval"/> (default one minute). Each pass gets its own DI scope.
+/// <see cref="PollingOptions.Interval"/> (default one minute). Each pass gets its own DI scope, and passes what
+/// the poll found on to the <see cref="INotificationService"/>s.
 /// </summary>
 public sealed class FeedPollingBackgroundService(
     IServiceScopeFactory scopeFactory,
@@ -50,13 +53,19 @@ public sealed class FeedPollingBackgroundService(
             var polling = scope.ServiceProvider.GetRequiredService<IFeedPollingService>();
 
             var newArticlesByEmail = await polling.PollAsync(cancellationToken);
+            if (newArticlesByEmail.Count == 0)
+                return;
 
-            if (newArticlesByEmail.Count > 0)
-            {
-                logger.LogInformation(
-                    "Polling pass found {ArticleCount} new article notification(s) for {SubscriberCount} subscriber(s).",
-                    newArticlesByEmail.Values.Sum(articles => articles.Count), newArticlesByEmail.Count);
-            }
+            logger.LogInformation(
+                "Polling pass found {ArticleCount} new article notification(s) for {SubscriberCount} subscriber(s).",
+                newArticlesByEmail.Values.Sum(articles => articles.Count), newArticlesByEmail.Count);
+
+            // The polling result is keyed by email address and only covers email-enabled subscriptions, so it
+            // goes to the email channel. (Per-subscriber channel choice, incl. Slack, arrives with C2/C4.)
+            var notifiers = scope.ServiceProvider.GetServices<INotificationService>()
+                .Where(n => n.Channel == NotificationChannel.Email)
+                .ToList();
+            await DispatchAsync(notifiers, newArticlesByEmail, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -65,6 +74,45 @@ public sealed class FeedPollingBackgroundService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Feed polling pass failed; retrying on the next tick.");
+        }
+    }
+
+    /// <summary>One notification per subscriber per channel; a failing recipient or channel never blocks the rest.</summary>
+    private async Task DispatchAsync(
+        IReadOnlyList<INotificationService> notifiers,
+        IReadOnlyDictionary<string, IReadOnlyList<Article>> newArticlesByEmail,
+        CancellationToken cancellationToken)
+    {
+        if (notifiers.Count == 0)
+        {
+            logger.LogWarning("New articles were found but no email notification service is registered.");
+            return;
+        }
+
+        foreach (var (email, articles) in newArticlesByEmail)
+        {
+            var notification = new ArticleNotification(email, articles);
+            foreach (var notifier in notifiers)
+            {
+                try
+                {
+                    var result = await notifier.NotifyAsync(notification, cancellationToken);
+                    if (result.IsError)
+                    {
+                        logger.LogWarning(
+                            "{Channel} notification to {Recipient} failed: {Reason}",
+                            notifier.Channel.Name, email, result.FirstError.Description);
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "{Channel} notification to {Recipient} threw.", notifier.Channel.Name, email);
+                }
+            }
         }
     }
 }

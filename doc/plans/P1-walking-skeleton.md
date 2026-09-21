@@ -147,3 +147,28 @@ background-service dispatch tests (per-recipient dispatch, failure isolation), h
 3. After S5: boot the real app from the working directory (Development) and confirm from the logs that migrations,
    seeding and the polling loop start cleanly, and that `/` serves the feed cards.
 4. `git status` clean after each commit; commits: plan, S1, S2, S3, S4, S5.
+
+---
+
+## Outcome (2026-09-21)
+
+All five steps are done and committed separately (plan, S1, S2, S3, S4, S5); 200 xUnit tests pass with 0 build
+warnings. The definition of done is covered end to end through the real host by `WalkingSkeletonTests`, and was
+exercised once against live publishers from a Development boot (RSS, Atom and RDF feeds; 114 of the 115 seeded feeds
+fetch and parse). Deviations from the plan above, all small:
+
+- **S3** — the prerendered catalogue and subscribed ids are carried into the circuit with `[PersistentState]` (avoids a
+  "Loading…" flash and a second query when the page turns interactive).
+- **S1** — the validation bridge is `Services/ValidationResultExtensions.cs` (not `ErrorOrExtensions.cs`).
+- **S4** — the fetcher returns the raw **bytes** (`ErrorOr<byte[]>`, not a string) so the XML declaration / BOM decides
+  the encoding. Beyond the plan: `HttpFeedFetcher` follows the https → http redirects the handler refuses, upgraded back to
+  https (four seeded publishers need it), and the date parser knows common zone abbreviations (e.g. `BST`). Both came
+  out of the live catalogue check.
+- **S5** — `EmailNotificationService` returns the failure cause instead of logging it (the transport already logs the
+  detail and the dispatcher reports the error), so a dead SMTP server isn't logged three times per digest.
+- **Tests** — `TestAppFactory` keeps its temp database under `bin/` (not `%TEMP%`), clears the SQLite pools so the
+  file is really deleted, and swaps in no-network / recording doubles so no test reaches a publisher or an SMTP server.
+
+Not verified by automation: the interactive (SignalR) click path of the Subscribe / admin forms — the pages' prerender,
+authorization, services and DI are covered, but nobody has clicked the buttons in a browser yet — and a real mailbox
+delivery (Papercut was not running).

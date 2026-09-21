@@ -1,4 +1,5 @@
 using LuminaFeed.Data;
+using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Polling;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -24,16 +25,20 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
 
     private readonly bool _validUnsubscribe;
     private readonly bool _seedAdmin;
+    private readonly Action<IServiceCollection>? _configureServices;
 
     // Next to the test binaries (gitignored bin/), so a test run never writes outside the repository.
     private readonly string _dbPath = Path.Combine(AppContext.BaseDirectory, $"luminafeed-test-{Guid.NewGuid():N}.db");
 
     /// <param name="validUnsubscribe">False blanks the HMAC secret to exercise <c>ValidateOnStart</c>.</param>
     /// <param name="seedAdmin">True seeds a confirmed admin (<see cref="AdminEmail"/>) that tests can sign in as.</param>
-    public TestAppFactory(bool validUnsubscribe = true, bool seedAdmin = false)
+    /// <param name="configureServices">Extra test doubles, applied after the defaults below.</param>
+    public TestAppFactory(
+        bool validUnsubscribe = true, bool seedAdmin = false, Action<IServiceCollection>? configureServices = null)
     {
         _validUnsubscribe = validUnsubscribe;
         _seedAdmin = seedAdmin;
+        _configureServices = configureServices;
         // Read imperatively by Program before Build, so it must come from an early config source
         // (environment variables) rather than a ConfigureAppConfiguration source added during Build.
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", $"DataSource={_dbPath}");
@@ -73,6 +78,12 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
             // The polling loop runs in this host too; it must never reach the real catalogue's publishers.
             services.RemoveAll<IFeedFetcher>();
             services.AddSingleton<IFeedFetcher, NoNetworkFeedFetcher>();
+
+            // ...and nothing may try to reach an SMTP server either.
+            services.RemoveAll<IMailSender>();
+            services.AddSingleton<IMailSender, RecordingMailSender>();
+
+            _configureServices?.Invoke(services);
         });
     }
 

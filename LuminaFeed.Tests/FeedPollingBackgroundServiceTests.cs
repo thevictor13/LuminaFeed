@@ -1,5 +1,7 @@
+using ErrorOr;
 using LuminaFeed.Domain;
 using LuminaFeed.Options;
+using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -34,10 +36,34 @@ public class FeedPollingBackgroundServiceTests
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<Article>> Nothing =
         new Dictionary<string, IReadOnlyList<Article>>();
 
-    private static (FeedPollingBackgroundService Service, ListLogger<FeedPollingBackgroundService> Logger, ServiceProvider Provider)
-        Create(IFeedPollingService polling, int intervalSeconds = 3600)
+    private sealed class FakeNotificationService(NotificationChannel channel, Func<ArticleNotification, ErrorOr<Success>>? onNotify = null)
+        : INotificationService
     {
-        var provider = new ServiceCollection().AddScoped(_ => polling).BuildServiceProvider();
+        public List<ArticleNotification> Received { get; } = [];
+
+        public NotificationChannel Channel => channel;
+
+        public Task<ErrorOr<Success>> NotifyAsync(ArticleNotification notification, CancellationToken cancellationToken = default)
+        {
+            Received.Add(notification);
+            return Task.FromResult(onNotify?.Invoke(notification) ?? Result.Success);
+        }
+    }
+
+    private static Article NewArticle(string title) => new()
+    {
+        ExternalId = title,
+        Title = title,
+        Link = "https://articles.example.test/" + title,
+    };
+
+    private static (FeedPollingBackgroundService Service, ListLogger<FeedPollingBackgroundService> Logger, ServiceProvider Provider)
+        Create(IFeedPollingService polling, int intervalSeconds = 3600, params INotificationService[] notifiers)
+    {
+        var services = new ServiceCollection().AddScoped(_ => polling);
+        foreach (var notifier in notifiers)
+            services.AddSingleton(notifier);
+        var provider = services.BuildServiceProvider();
         var logger = new ListLogger<FeedPollingBackgroundService>();
         var service = new FeedPollingBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -104,6 +130,83 @@ public class FeedPollingBackgroundServiceTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.RunCycleAsync(cts.Token));
         Assert.DoesNotContain(logger.Entries, e => e.Level >= LogLevel.Error);
+    }
+
+    [Fact]
+    public async Task RunCycleAsync_SendsEachSubscriberTheirArticles_ThroughTheEmailChannelOnly()
+    {
+        var forAlice = new[] { NewArticle("A1"), NewArticle("A2") };
+        var forBob = new[] { NewArticle("B1") };
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        {
+            ["alice@example.test"] = forAlice,
+            ["bob@example.test"] = forBob,
+        });
+        var email = new FakeNotificationService(NotificationChannel.Email);
+        var slack = new FakeNotificationService(NotificationChannel.Slack);
+        var (service, _, provider) = Create(polling, notifiers: [email, slack]);
+        using var disposeProvider = provider;
+
+        await service.RunCycleAsync(CancellationToken.None);
+
+        Assert.Equal(2, email.Received.Count);
+        Assert.Equal(forAlice, email.Received.Single(n => n.RecipientEmail == "alice@example.test").Articles);
+        Assert.Equal(forBob, email.Received.Single(n => n.RecipientEmail == "bob@example.test").Articles);
+        // The poll result only covers email-enabled subscriptions, so nothing may leak to another channel.
+        Assert.Empty(slack.Received);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunCycleAsync_OneFailingRecipient_DoesNotBlockTheOthers(bool failureThrows)
+    {
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        {
+            ["alice@example.test"] = [NewArticle("A1")],
+            ["bob@example.test"] = [NewArticle("B1")],
+            ["carol@example.test"] = [NewArticle("C1")],
+        });
+        var email = new FakeNotificationService(NotificationChannel.Email, notification =>
+            notification.RecipientEmail != "bob@example.test" ? Result.Success
+            : failureThrows ? throw new InvalidOperationException("kaboom")
+            : Error.Failure("Notification.EmailFailed", "SMTP said no"));
+        var (service, logger, provider) = Create(polling, notifiers: email);
+        using var disposeProvider = provider;
+
+        await service.RunCycleAsync(CancellationToken.None);
+
+        Assert.Equal(
+            ["alice@example.test", "bob@example.test", "carol@example.test"],
+            email.Received.Select(n => n.RecipientEmail).Order());
+        Assert.Contains(logger.Entries, e => e.Level >= LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task RunCycleAsync_NothingNew_NotifiesNobody()
+    {
+        var email = new FakeNotificationService(NotificationChannel.Email);
+        var (service, _, provider) = Create(new ScriptedPollingService(_ => Nothing), notifiers: email);
+        using var disposeProvider = provider;
+
+        await service.RunCycleAsync(CancellationToken.None);
+
+        Assert.Empty(email.Received);
+    }
+
+    [Fact]
+    public async Task RunCycleAsync_NewArticlesButNoEmailService_LogsAWarning()
+    {
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        {
+            ["alice@example.test"] = [NewArticle("A1")],
+        });
+        var (service, logger, provider) = Create(polling);
+        using var disposeProvider = provider;
+
+        await service.RunCycleAsync(CancellationToken.None);
+
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
     [Fact]

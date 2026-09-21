@@ -1,7 +1,9 @@
 # Feature: Email Infrastructure (G0.6)
 
 Real email delivery via **MailKit**, replacing the template's no-op sender, with an Outlook-safe HTML layout. This
-covers Identity account emails (confirmation, password reset); article-notification emails come later (Phase 2, C3).
+covers Identity account emails (confirmation, password reset). New-article digests reuse the same transport and
+layout through `EmailNotificationService` — see [Notifications](./notifications.md); richer article templates come
+with C3.
 
 ## Components (`LuminaFeed/Services/Email/`)
 
