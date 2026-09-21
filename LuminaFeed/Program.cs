@@ -5,6 +5,7 @@ using LuminaFeed.Authorization;
 using LuminaFeed.Components;
 using LuminaFeed.Components.Account;
 using LuminaFeed.Data;
+using LuminaFeed.Data.Seed;
 using LuminaFeed.Options;
 using LuminaFeed.Services.Email;
 
@@ -30,6 +31,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddScoped<DatabaseSeeder>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
@@ -64,6 +66,16 @@ builder.Services.AddOptions<UnsubscribeOptions>()
     .ValidateOnStart();
 
 var app = builder.Build();
+
+// Apply migrations and seed the researched feed catalogue (G0.7).
+// NOTE: auto-migrating on startup is a deliberate temporary shortcut and is NOT production-ready
+// (no review gate, races across instances, no rollback). Revisit before any production deployment.
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    await services.GetRequiredService<ApplicationDbContext>().Database.MigrateAsync();
+    await services.GetRequiredService<DatabaseSeeder>().SeedAsync(app.Lifetime.ApplicationStopping);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

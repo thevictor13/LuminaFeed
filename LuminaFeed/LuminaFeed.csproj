@@ -39,4 +39,9 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <!-- G0.R research catalogue is the single source of truth; embedded and loaded by the G0.7 seeder. -->
+      <EmbeddedResource Include="..\doc\research\rss-feeds.json" Link="Data\Seed\rss-feeds.json" />
+    </ItemGroup>
+
 </Project>

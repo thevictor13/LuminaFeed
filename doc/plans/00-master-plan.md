@@ -40,7 +40,7 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 - [x] **G0.4 — Admin authorization.** Turn `IsAdmin` into an `"Admin"` authorization policy; guard an admin area + nav section. _(needs G0.3)_
 - [x] **G0.5 — Config & options.** appsettings sections + typed options: Development **Papercut** SMTP (localhost), polling interval, HMAC unsubscribe secret. _(with G0.3; parallel)_
 - [x] **G0.6 — Real email infra.** Replace `IdentityNoOpEmailSender` with a **MailKit** `IEmailSender<ApplicationUser>`; establish the **table-based, Outlook-safe** email layout foundation. Unblocks the real confirmation flow. _(needs G0.5; parallel with G0.3/G0.4)_
-- [ ] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. _(needs G0.3 + G0.R)_
+- [x] **G0.7 — Seed data.** Load the researched **categories + feeds + fixed popularity figures** (from G0.R) into the DB seeder. _(needs G0.3 + G0.R)_ ✅ **Done** — embedded `rss-feeds.json` seeded via `DatabaseSeeder` (insert-missing-only, idempotent); startup runs `MigrateAsync` + seed (⚠️ auto-migrate is a temporary, not-production-ready shortcut). Plan: [`G0.7-seed-data.md`](./G0.7-seed-data.md); feature: [`../features/seed-data.md`](../features/seed-data.md).
 
 **Groundwork parallelization:** `G0.R` first and gating. Then `G0.1 → {G0.2, G0.3, G0.5}`; `G0.4` after G0.3, `G0.6` after G0.5, and `G0.7` once G0.3 is done (G0.R already complete).
 
