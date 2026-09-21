@@ -1,7 +1,43 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+@using LuminaFeed.Services.Feeds
 
-<h1>Hello, world!</h1>
+@inject IFeedService FeedService
 
-Welcome to your new app.
+<PageTitle>LuminaFeed</PageTitle>
+
+<h1>Feeds</h1>
+
+<p class="lead">Subscribe to curated RSS feeds and get alerted when they publish something new.</p>
+
+@if (categories is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (categories.Count == 0)
+{
+    <p>No feeds have been added yet.</p>
+}
+else
+{
+    @foreach (var category in categories)
+    {
+        <section class="mb-5" @key="category.CategoryId">
+            <h2 class="h4 border-bottom pb-2 mb-3">@category.CategoryName</h2>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3">
+                @foreach (var feed in category.Feeds)
+                {
+                    <div class="col" @key="feed.Id">
+                        <FeedCard Feed="feed"/>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private IReadOnlyList<CategoryFeeds>? categories;
+
+    protected override async Task OnInitializedAsync() => categories = await FeedService.ListByCategoryAsync();
+}

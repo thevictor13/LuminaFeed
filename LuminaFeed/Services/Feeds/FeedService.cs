@@ -23,6 +23,24 @@ public sealed class FeedService(
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CategoryFeeds>> ListByCategoryAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var feeds = await db.Feeds
+            .AsNoTracking()
+            .OrderBy(f => f.Category.Name)
+            .ThenByDescending(f => f.Popularity)
+            .ThenBy(f => f.Name)
+            .Select(f => new FeedSummary(
+                f.Id, f.Name, f.CategoryId, f.Category.Name, f.FeedUrl, f.SiteUrl, f.ImageUrl, f.Description, f.Popularity))
+            .ToListAsync(cancellationToken);
+
+        // GroupBy keeps first-seen key order and element order, so the SQL ordering above carries through.
+        return [.. feeds
+            .GroupBy(f => (f.CategoryId, f.CategoryName))
+            .Select(g => new CategoryFeeds(g.Key.CategoryId, g.Key.CategoryName, [.. g]))];
+    }
+
     public async Task<ErrorOr<FeedSummary>> CreateAsync(
         CreateFeedRequest request, CancellationToken cancellationToken = default)
     {

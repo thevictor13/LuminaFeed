@@ -1,0 +1,27 @@
+@using LuminaFeed.Services.Feeds
+
+@* A feed on the public list: image (when the feed has one), name, description and its actions. *@
+<div class="card h-100 feed-card">
+    @if (!string.IsNullOrEmpty(Feed.ImageUrl))
+    {
+        <img src="@Feed.ImageUrl" class="card-img-top feed-card-image" alt="" loading="lazy" referrerpolicy="no-referrer"/>
+    }
+    <div class="card-body d-flex flex-column">
+        <h3 class="card-title h6">@Feed.Name</h3>
+        @if (!string.IsNullOrEmpty(Feed.Description))
+        {
+            <p class="card-text small text-secondary">@Feed.Description</p>
+        }
+        <div class="mt-auto d-flex flex-wrap gap-2">
+            <a href="@Feed.SiteUrl" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">Visit site</a>
+            @Actions
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public FeedSummary Feed { get; set; } = default!;
+
+    /// <summary>Extra buttons rendered next to the site link (e.g. subscribe).</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

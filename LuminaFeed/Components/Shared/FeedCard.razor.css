@@ -1,0 +1,6 @@
+.feed-card-image {
+    height: 7rem;
+    padding: 0.75rem;
+    object-fit: contain;
+    background-color: #f8f9fa;
+}

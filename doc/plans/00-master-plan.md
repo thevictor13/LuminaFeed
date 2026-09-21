@@ -56,11 +56,7 @@ One deliberately thin path end-to-end to de-risk integration. Everything here is
 > Detailed plan for the whole phase: [`P1-walking-skeleton.md`](./P1-walking-skeleton.md).
 
 - [x] **S1 — Admin: create category + feed.** Minimal create/list only. _(needs G0.3, G0.4)_ ✅ **Done** — `/admin/categories` + `/admin/feeds` over `ICategoryService` / `IFeedService` (ErrorOr + FluentValidation); persistence access switched to `IDbContextFactory`. Feature: [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
-- [ ] **S2 — Public: minimal feed list.** Show the feed as a card. No ordering/filter/pagination. _(needs S1)_
-  **Also removes the leftover stock-template demo UI** (deferred here from the G0.9 review) when the real public view
-  replaces it: delete `Components/Pages/{Counter,Weather,Auth}.razor`; replace `Home.razor`'s "Hello, world!"
-  placeholder; drop the **Counter / Weather / Auth Required** links in `Components/Layout/NavMenu.razor`; and remove the
-  dead `@using System.Net.Http[.Json]` imports in `Components/_Imports.razor`.
+- [x] **S2 — Public: minimal feed list.** Show the feed as a card. No ordering/filter/pagination. _(needs S1)_ ✅ **Done** — `/` lists every feed as a card grouped by category (fixed popularity order) via `IFeedService.ListByCategoryAsync`; template sample pages removed. Feature: [`../features/public-feed-list.md`](../features/public-feed-list.md).
 - [ ] **S3 — Subscribe (email only).** Signed-in user persists an email subscription; skip dialog/Slack/redirect polish. _(needs G0.3, S2)_
 - [ ] **S4 — Polling (minimal).** Background service polls the subscribed feed on interval, fetches items, persists `Article`s. _(needs G0.3, G0.5, S3)_
 - [ ] **S5 — Email notification (minimal).** `EmailNotificationService` (behind `INotificationService`) sends a plain new-article email to the subscriber. _(needs G0.6, S4)_

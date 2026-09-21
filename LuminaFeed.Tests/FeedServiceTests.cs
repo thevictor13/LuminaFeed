@@ -166,6 +166,56 @@ public sealed class FeedServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ListByCategoryAsync_GroupsByCategoryName_WithFeedsByPopularityDescending()
+    {
+        var weather = _db.AddCategory("Weather");
+        var markets = _db.AddCategory("Markets");
+        _db.AddFeed(weather.Id, "NOAA", popularity: 10);
+        _db.AddFeed(weather.Id, "Met Office", popularity: 500);
+        _db.AddFeed(weather.Id, "AccuWeather", popularity: 10);
+        _db.AddFeed(markets.Id, "Reuters Markets", popularity: 1);
+
+        var groups = await CreateService().ListByCategoryAsync();
+
+        Assert.Equal(["Markets", "Weather"], groups.Select(g => g.CategoryName));
+        Assert.Equal(markets.Id, groups[0].CategoryId);
+        Assert.Equal(["Reuters Markets"], groups[0].Feeds.Select(f => f.Name));
+        // Popularity first (highest wins); name breaks the tie between the two 10s.
+        Assert.Equal(["Met Office", "AccuWeather", "NOAA"], groups[1].Feeds.Select(f => f.Name));
+        Assert.All(groups[1].Feeds, f => Assert.Equal("Weather", f.CategoryName));
+    }
+
+    [Fact]
+    public async Task ListByCategoryAsync_OmitsCategoriesWithoutFeeds()
+    {
+        _db.AddCategory("Empty");
+        var weather = _db.AddCategory("Weather");
+        _db.AddFeed(weather.Id, "NOAA");
+
+        var groups = await CreateService().ListByCategoryAsync();
+
+        Assert.Equal("Weather", Assert.Single(groups).CategoryName);
+    }
+
+    [Fact]
+    public async Task ListByCategoryAsync_EmptyCatalogue_ReturnsEmpty()
+    {
+        Assert.Empty(await CreateService().ListByCategoryAsync());
+    }
+
+    [Fact]
+    public async Task ListByCategoryAsync_IncludesAFeedAddedThroughTheAdminService()
+    {
+        var category = _db.AddCategory("World News");
+        var service = CreateService();
+
+        var created = await service.CreateAsync(ValidRequest(category.Id));
+
+        var feed = Assert.Single(Assert.Single(await service.ListByCategoryAsync()).Feeds);
+        Assert.Equal(created.Value, feed);
+    }
+
+    [Fact]
     public void ValidatorLimits_MatchTheColumnLimits()
     {
         using var ctx = _db.CreateDbContext();
