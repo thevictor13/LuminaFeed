@@ -2,6 +2,7 @@ using LuminaFeed.Data;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,7 @@ public sealed class HostBootTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IEmailSender<ApplicationUser>>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ICategoryService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubscriptionService>());
 
         // Seeding ran against the isolated database.
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

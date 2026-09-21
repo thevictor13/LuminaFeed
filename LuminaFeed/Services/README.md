@@ -7,8 +7,10 @@ FluentValidation, and open a short-lived `ApplicationDbContext` per operation vi
 **Implemented:**
 - `Email/` — MailKit email transport (`IMailSender` / `MailKitMailSender`), the Identity email sender
   (`IdentityEmailSender`), and the Outlook-safe HTML layout (`EmailLayout`). _(Phase 0)_
-- `Categories/`, `Feeds/` — admin catalogue management: create + list (`ICategoryService`, `IFeedService`). _(S1)_
+- `Categories/`, `Feeds/` — the curated catalogue: admin create + list, and the public grouped list
+  (`ICategoryService`, `IFeedService`). _(S1, S2)_
+- `Subscriptions/` — email-only subscribe / unsubscribe per user and feed (`ISubscriptionService`). _(S3)_
 
-**Planned (not yet built):** subscriptions, RSS polling/fetching and the polling background service, and
+**Planned (not yet built):** RSS polling/fetching and the polling background service, and
 the notification abstraction (`INotificationService`) with its `EmailNotificationService` /
 `SlackNotificationService` implementations.

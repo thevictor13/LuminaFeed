@@ -9,6 +9,8 @@ with **B1–B3**, and the per-feed article page with **B4**.
 - Anonymous-accessible. Renders one `<section>` per category (heading + a responsive Bootstrap card grid:
   1 column on phones → 5 per row on wide screens).
 - States: _loading_, _"No feeds have been added yet."_ for an empty catalogue, otherwise the grouped cards.
+- Since S3 the page runs with `@rendermode InteractiveServer` (for the per-card subscribe button) and hands its
+  prerendered data to the circuit via `[PersistentState]` — see [Subscriptions](./subscriptions.md).
 - Replaces the template's "Hello, world" page. The template sample pages (`Counter`, `Weather`, `Auth`) and their nav
   links were removed; the nav now has a single **Feeds** entry (plus Admin / account links).
 

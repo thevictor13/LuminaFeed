@@ -1,0 +1,26 @@
+@* Subscribe / Unsubscribe (red) for signed-in users; anonymous users are sent to log in and come back. *@
+@if (!IsAuthenticated)
+{
+    <a href="@LoginUrl" class="btn btn-sm btn-primary">Subscribe</a>
+}
+else if (IsSubscribed)
+{
+    <button type="button" class="btn btn-sm btn-danger" disabled="@Busy" @onclick="OnToggle">Unsubscribe</button>
+}
+else
+{
+    <button type="button" class="btn btn-sm btn-primary" disabled="@Busy" @onclick="OnToggle">Subscribe</button>
+}
+
+@code {
+    [Parameter] public bool IsAuthenticated { get; set; }
+    [Parameter] public bool IsSubscribed { get; set; }
+
+    /// <summary>Disables the button while a subscribe/unsubscribe call is in flight.</summary>
+    [Parameter] public bool Busy { get; set; }
+
+    /// <summary>Where anonymous users go to sign in (carries the return URL).</summary>
+    [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
+
+    [Parameter] public EventCallback OnToggle { get; set; }
+}

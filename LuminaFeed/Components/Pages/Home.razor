@@ -1,26 +1,33 @@
 @page "/"
+@rendermode InteractiveServer
 
+@using System.Security.Claims
 @using LuminaFeed.Services.Feeds
+@using LuminaFeed.Services.Subscriptions
 
 @inject IFeedService FeedService
+@inject ISubscriptionService SubscriptionService
+@inject NavigationManager NavigationManager
 
 <PageTitle>LuminaFeed</PageTitle>
 
 <h1>Feeds</h1>
 
-<p class="lead">Subscribe to curated RSS feeds and get alerted when they publish something new.</p>
+<p class="lead">Subscribe to curated RSS feeds and get alerted by email when they publish something new.</p>
 
-@if (categories is null)
+<ErrorList Messages="errors"/>
+
+@if (Categories is null)
 {
     <p><em>Loading…</em></p>
 }
-else if (categories.Count == 0)
+else if (Categories.Count == 0)
 {
     <p>No feeds have been added yet.</p>
 }
 else
 {
-    @foreach (var category in categories)
+    @foreach (var category in Categories)
     {
         <section class="mb-5" @key="category.CategoryId">
             <h2 class="h4 border-bottom pb-2 mb-3">@category.CategoryName</h2>
@@ -28,7 +35,15 @@ else
                 @foreach (var feed in category.Feeds)
                 {
                     <div class="col" @key="feed.Id">
-                        <FeedCard Feed="feed"/>
+                        <FeedCard Feed="feed">
+                            <Actions>
+                                <SubscribeButton IsAuthenticated="@(userId is not null)"
+                                                 IsSubscribed="@SubscribedFeedIds.Contains(feed.Id)"
+                                                 Busy="@(busyFeedId == feed.Id)"
+                                                 LoginUrl="@loginUrl"
+                                                 OnToggle="@(() => ToggleSubscriptionAsync(feed.Id))"/>
+                            </Actions>
+                        </FeedCard>
                     </div>
                 }
             </div>
@@ -37,7 +52,68 @@ else
 }
 
 @code {
-    private IReadOnlyList<CategoryFeeds>? categories;
+    private string? userId;
+    private string loginUrl = "Account/Login";
+    private Guid? busyFeedId;
+    private IReadOnlyList<string> errors = [];
 
-    protected override async Task OnInitializedAsync() => categories = await FeedService.ListByCategoryAsync();
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    // Carried from the prerender into the interactive circuit, so the cards don't flash back to "Loading…"
+    // (and the catalogue isn't queried twice) when the circuit takes over.
+    [PersistentState] public IReadOnlyList<CategoryFeeds>? Categories { get; set; }
+    [PersistentState] public HashSet<Guid>? SubscribedIds { get; set; }
+
+    private HashSet<Guid> SubscribedFeedIds => SubscribedIds ??= [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The id always comes from the authenticated principal — never from anything the client sends.
+        if (AuthenticationState is not null)
+        {
+            var user = (await AuthenticationState).User;
+            userId = user.Identity?.IsAuthenticated == true ? user.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+        }
+
+        // Anonymous visitors are treated as having no subscriptions; "Subscribe" sends them to log in and back.
+        loginUrl = NavigationManager.GetUriWithQueryParameters(
+            "Account/Login",
+            new Dictionary<string, object?> { ["ReturnUrl"] = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri) });
+
+        Categories ??= await FeedService.ListByCategoryAsync();
+        SubscribedIds ??= [.. await SubscriptionService.GetSubscribedFeedIdsAsync(userId)];
+    }
+
+    private async Task ToggleSubscriptionAsync(Guid feedId)
+    {
+        if (userId is null || busyFeedId is not null)
+            return;
+
+        busyFeedId = feedId;
+        try
+        {
+            errors = [];
+            if (SubscribedFeedIds.Contains(feedId))
+            {
+                var result = await SubscriptionService.UnsubscribeAsync(userId, feedId);
+                // Already gone (e.g. removed in another tab) is the state the user asked for.
+                if (!result.IsError || result.FirstError.Code == SubscriptionErrors.NotSubscribed.Code)
+                    SubscribedFeedIds.Remove(feedId);
+                else
+                    errors = [.. result.Errors.Select(e => e.Description)];
+            }
+            else
+            {
+                var result = await SubscriptionService.SubscribeByEmailAsync(userId, feedId);
+                if (!result.IsError)
+                    SubscribedFeedIds.Add(feedId);
+                else
+                    errors = [.. result.Errors.Select(e => e.Description)];
+            }
+        }
+        finally
+        {
+            busyFeedId = null;
+        }
+    }
 }

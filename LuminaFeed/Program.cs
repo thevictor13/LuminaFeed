@@ -11,6 +11,7 @@ using LuminaFeed.Options;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Subscriptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,7 @@ builder.Services.AddScoped<AdminUserSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

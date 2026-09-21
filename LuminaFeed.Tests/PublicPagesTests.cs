@@ -1,5 +1,8 @@
 using System.Net;
+using LuminaFeed.Data;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Subscriptions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -47,6 +50,49 @@ public sealed class PublicPagesTests
         Assert.Contains("src=\"https://gazette.example.test/logo.png\"", html);
         Assert.Contains("href=\"https://gazette.example.test\"", html);
     }
+
+    [Fact]
+    public async Task Home_Anonymous_SubscribeSendsTheVisitorToLoginAndBack()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/");
+
+        // Anonymous users are treated as having no subscriptions: every card offers Subscribe, as a
+        // link to the login page carrying the location to return to.
+        Assert.Equal(115, CountOf(html, ">Subscribe</a>"));
+        Assert.Contains("href=\"Account/Login?ReturnUrl=%2F\"", html);
+        Assert.DoesNotContain("Unsubscribe", html);
+    }
+
+    [Fact]
+    public async Task Home_SignedIn_ShowsUnsubscribeInRedOnlyForSubscribedFeeds()
+    {
+        using var factory = new TestAppFactory(seedAdmin: true);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByEmailAsync(TestAppFactory.AdminEmail);
+            var feed = (await scope.ServiceProvider.GetRequiredService<IFeedService>().ListByCategoryAsync())[0].Feeds[0];
+            var subscribed = await scope.ServiceProvider.GetRequiredService<ISubscriptionService>()
+                .SubscribeByEmailAsync(user!.Id, feed.Id);
+            Assert.False(subscribed.IsError);
+        }
+
+        await TestSignIn.SignInAsync(client, TestAppFactory.AdminEmail, TestAppFactory.AdminPassword);
+        var html = await client.GetStringAsync("/");
+
+        Assert.Equal(1, CountOf(html, "btn-danger"));
+        Assert.Equal(1, CountOf(html, ">Unsubscribe</button>"));
+        Assert.Equal(114, CountOf(html, ">Subscribe</button>"));
+        Assert.DoesNotContain("Account/Login?ReturnUrl", html);
+        // The prerendered catalogue is handed to the interactive circuit instead of being re-queried.
+        Assert.Contains("Blazor-Server-Component-State", html);
+    }
+
+    private static int CountOf(string html, string fragment) => html.Split(fragment).Length - 1;
 
     [Theory]
     [InlineData("/counter")]
