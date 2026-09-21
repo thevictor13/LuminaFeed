@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using LuminaFeed.Authorization;
 using LuminaFeed.Components;
 using LuminaFeed.Components.Account;
@@ -11,6 +12,7 @@ using LuminaFeed.Options;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,6 +48,13 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+
+// Feed polling: a typed HttpClient fetcher, one scoped polling pass, and the background loop that drives it.
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient<IFeedFetcher, HttpFeedFetcher>(HttpFeedFetcher.Configure)
+    .ConfigurePrimaryHttpMessageHandler(HttpFeedFetcher.CreateHandler);
+builder.Services.AddScoped<IFeedPollingService, FeedPollingService>();
+builder.Services.AddHostedService<FeedPollingBackgroundService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

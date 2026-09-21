@@ -45,6 +45,31 @@ public class OptionsTests
     }
 
     [Fact]
+    public void PollingOptions_FirstPollNotificationCap_DefaultsToFive_AndBinds()
+    {
+        Assert.Equal(5, new PollingOptions().FirstPollNotificationCap);
+
+        var config = BuildConfig(new() { ["Polling:FirstPollNotificationCap"] = "0" });
+        var bound = config.GetSection(PollingOptions.SectionName).Get<PollingOptions>();
+        Assert.Equal(0, bound!.FirstPollNotificationCap);
+    }
+
+    [Theory]
+    [InlineData(0, 5, false)]
+    [InlineData(-1, 5, false)]
+    [InlineData(60, -1, false)]
+    [InlineData(1, 0, true)]
+    public void PollingOptions_Validation(int intervalSeconds, int firstPollCap, bool expectedValid)
+    {
+        var options = new PollingOptions { IntervalSeconds = intervalSeconds, FirstPollNotificationCap = firstPollCap };
+
+        var isValid = Validator.TryValidateObject(
+            options, new ValidationContext(options), new List<ValidationResult>(), validateAllProperties: true);
+
+        Assert.Equal(expectedValid, isValid);
+    }
+
+    [Fact]
     public void UnsubscribeOptions_BindsSecret()
     {
         var config = BuildConfig(new() { ["Unsubscribe:HmacSecret"] = "a-sufficiently-long-secret" });

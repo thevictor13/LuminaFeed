@@ -6,7 +6,9 @@ Strongly-typed, startup-validated configuration for SMTP, polling, the unsubscri
 
 - **`SmtpOptions`** (`Smtp`) — `Host` (required), `Port` (1–65535, default 25), `FromAddress` (required, email),
   `FromName`, `UseStartTls`, optional `UserName` / `Password`.
-- **`PollingOptions`** (`Polling`) — `IntervalSeconds` (≥1, default 60) with an `Interval` `TimeSpan` accessor.
+- **`PollingOptions`** (`Polling`) — `IntervalSeconds` (≥1, default 60) with an `Interval` `TimeSpan` accessor, and
+  `FirstPollNotificationCap` (≥0, default 5): how many of the newest articles are reported on a feed's first
+  successful poll — see [Feed Polling](./feed-polling.md).
 - **`UnsubscribeOptions`** (`Unsubscribe`) — `HmacSecret` (required, min length 16) for RFC 8058 unsubscribe tokens (C5).
 - **`AdminSeedOptions`** (`AdminSeed`) — optional `Email` / `Password` with an `IsConfigured` computed flag; see
   [Seed Data](./seed-data.md).

@@ -1,4 +1,5 @@
 using LuminaFeed.Data;
+using LuminaFeed.Services.Polling;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -7,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace LuminaFeed.Tests;
 
@@ -63,9 +65,15 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
         // WebApplicationFactory's model rebuild (the real app boots cleanly, verified separately), so
         // it is a harness-only false positive here.
         builder.ConfigureTestServices(services =>
+        {
             services.ConfigureDbContext<ApplicationDbContext>(options => options
                 .UseSqlite($"DataSource={_dbPath}")
-                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))));
+                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+
+            // The polling loop runs in this host too; it must never reach the real catalogue's publishers.
+            services.RemoveAll<IFeedFetcher>();
+            services.AddSingleton<IFeedFetcher, NoNetworkFeedFetcher>();
+        });
     }
 
     protected override void Dispose(bool disposing)

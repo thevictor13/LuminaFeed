@@ -2,10 +2,12 @@ using LuminaFeed.Data;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace LuminaFeed.Tests;
@@ -34,6 +36,12 @@ public sealed class HostBootTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ICategoryService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubscriptionService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedPollingService>());
+
+        // The polling loop is hosted, and running.
+        var polling = Assert.Single(factory.Services.GetServices<IHostedService>().OfType<FeedPollingBackgroundService>());
+        Assert.NotNull(polling.ExecuteTask);
+        Assert.False(polling.ExecuteTask.IsFaulted);
 
         // Seeding ran against the isolated database.
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

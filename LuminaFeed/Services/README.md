@@ -11,6 +11,8 @@ FluentValidation, and open a short-lived `ApplicationDbContext` per operation vi
   (`ICategoryService`, `IFeedService`). _(S1, S2)_
 - `Subscriptions/` — email-only subscribe / unsubscribe per user and feed (`ISubscriptionService`). _(S3)_
 
-**Planned (not yet built):** RSS polling/fetching and the polling background service, and
-the notification abstraction (`INotificationService`) with its `EmailNotificationService` /
+- `Polling/` — the polling loop (`FeedPollingBackgroundService`), one polling pass (`IFeedPollingService`), the
+  HTTP fetcher (`IFeedFetcher`) and the RSS/Atom/RDF reader (`FeedParser`). _(S4)_
+
+**Planned (not yet built):** the notification abstraction (`INotificationService`) with its `EmailNotificationService` /
 `SlackNotificationService` implementations.
