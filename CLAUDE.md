@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **For broad context**, always read `doc/LuminaFeed Initial Specification.md`. That spec is the source of truth for detailed behaviour; the summaries below capture the durable decisions.
 - Any new features implemented must be documented in the `doc/features/` folder. These docs must constantly be kept up-to-date
+- **Any implementation plan you produce must be saved in the `doc/plans/` folder** (one Markdown file per plan).
 
 ## Product Overview
 
