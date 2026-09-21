@@ -5,6 +5,7 @@ using LuminaFeed.Components;
 using LuminaFeed.Components.Account;
 using LuminaFeed.Data;
 using LuminaFeed.Options;
+using LuminaFeed.Services.Email;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,7 +39,9 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+// Real email delivery via MailKit (replaces the template's no-op sender).
+builder.Services.AddSingleton<IMailSender, MailKitMailSender>();
+builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityEmailSender>();
 
 // Strongly-typed configuration, validated at startup.
 builder.Services.AddOptions<SmtpOptions>()
