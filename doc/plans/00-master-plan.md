@@ -35,7 +35,7 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 
 - [ ] 🗂 **G0.R — RSS feed research (FIRST; spike, non-code).** Research available public RSS feeds and produce: a **curated seed list of feeds**, the **category set those feeds imply** (this replaces the spec's illustrative World News / Markets / Weather / Breaking News list), and the **fixed initial popularity figures** per feed. Deliverable is a data list (checked into `doc/`), consumed by G0.7. **Handed to a separate agent; the rest of Phase 0 continues once it's done.**
 - [x] **G0.1 — Packages & test project.** Add ErrorOr, FluentValidation, Ardalis.SmartEnum (and MailKit, Slack.Webhooks). Add an **xUnit** test project to the solution. _(foundational; blocks all code)_
-- [ ] **G0.2 — Folder skeleton.** Create `Domain/`, `Services/`, `Components/Admin/`. _(trivial; with G0.1)_
+- [x] **G0.2 — Folder skeleton.** Create `Domain/`, `Services/`, `Components/Admin/`. _(trivial; with G0.1)_
 - [ ] 🗂 **G0.3 — Domain model + persistence.** Extend `ApplicationUser` (`IsAdmin`); add `Category`, `Feed` (incl. a **fixed `Popularity`** figure + an **image URL**), `Subscription` (per-channel prefs + Slack webhook), `Article` (incl. image URL); GUID-v7 ID convention; DbContext `DbSet`s + EF configs; **initial domain migration**. Schema only — seed data lands in G0.7. _(informed by G0.R; core prerequisite for nearly everything)_
 - [ ] **G0.4 — Admin authorization.** Turn `IsAdmin` into an `"Admin"` authorization policy; guard an admin area + nav section. _(needs G0.3)_
 - [ ] **G0.5 — Config & options.** appsettings sections + typed options: Development **Papercut** SMTP (localhost), polling interval, HMAC unsubscribe secret. _(with G0.3; parallel)_
