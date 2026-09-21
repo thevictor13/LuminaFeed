@@ -1,0 +1,16 @@
+@* Renders service error descriptions (from ErrorOr results) as a Bootstrap alert; nothing when empty. *@
+@if (Messages.Count > 0)
+{
+    <div class="alert alert-danger" role="alert">
+        <ul class="mb-0">
+            @foreach (var message in Messages)
+            {
+                <li>@message</li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<string> Messages { get; set; } = [];
+}

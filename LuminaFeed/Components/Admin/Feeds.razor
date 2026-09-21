@@ -1,0 +1,175 @@
+@page "/admin/feeds"
+@attribute [Authorize(Policy = AdminAuthorization.PolicyName)]
+@rendermode InteractiveServer
+
+@using LuminaFeed.Services.Categories
+@using LuminaFeed.Services.Feeds
+
+@inject ICategoryService CategoryService
+@inject IFeedService FeedService
+
+<PageTitle>Feeds — Admin</PageTitle>
+
+<h1>Feeds</h1>
+
+<p><a href="admin">&larr; Admin</a></p>
+
+<h2 class="h4">Add a feed</h2>
+
+<ErrorList Messages="errors"/>
+@if (createdName is not null)
+{
+    <div class="alert alert-success" role="status">Feed "@createdName" was added.</div>
+}
+
+@if (categories is { Count: 0 })
+{
+    <p>There are no categories yet — <a href="admin/categories">add a category</a> first.</p>
+}
+else
+{
+    <EditForm Model="form" OnSubmit="CreateAsync" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="feed-name" class="form-label">Name</label>
+                <InputText id="feed-name" @bind-Value="form.Name" class="form-control" maxlength="@CreateFeedRequestValidator.NameMaxLength"/>
+            </div>
+            <div class="col-md-6">
+                <label for="feed-category" class="form-label">Category</label>
+                <InputSelect id="feed-category" @bind-Value="form.CategoryId" class="form-select">
+                    <option value="">Select a category…</option>
+                    @foreach (var category in categories ?? [])
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-6">
+                <label for="feed-url" class="form-label">Feed URL <span class="text-secondary">(RSS/Atom endpoint)</span></label>
+                <InputText id="feed-url" @bind-Value="form.FeedUrl" class="form-control" placeholder="https://example.com/rss.xml"/>
+            </div>
+            <div class="col-md-6">
+                <label for="feed-site-url" class="form-label">Site URL</label>
+                <InputText id="feed-site-url" @bind-Value="form.SiteUrl" class="form-control" placeholder="https://example.com"/>
+            </div>
+            <div class="col-md-6">
+                <label for="feed-image-url" class="form-label">Image URL <span class="text-secondary">(optional)</span></label>
+                <InputText id="feed-image-url" @bind-Value="form.ImageUrl" class="form-control"/>
+            </div>
+            <div class="col-md-6">
+                <label for="feed-popularity" class="form-label">Popularity</label>
+                <InputNumber id="feed-popularity" @bind-Value="form.Popularity" class="form-control" min="0"/>
+            </div>
+            <div class="col-12">
+                <label for="feed-description" class="form-label">Description <span class="text-secondary">(optional)</span></label>
+                <InputTextArea id="feed-description" @bind-Value="form.Description" class="form-control" rows="2"/>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary" disabled="@busy">Add feed</button>
+            </div>
+        </div>
+    </EditForm>
+}
+
+<h2 class="h4">All feeds</h2>
+
+@if (feeds is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (feeds.Count == 0)
+{
+    <p>No feeds yet.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+        <tr>
+            <th scope="col">Category</th>
+            <th scope="col">Name</th>
+            <th scope="col">Feed URL</th>
+            <th scope="col" class="text-end">Popularity</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var feed in feeds)
+        {
+            <tr @key="feed.Id">
+                <td>@feed.CategoryName</td>
+                <td><a href="@feed.SiteUrl" target="_blank" rel="noopener noreferrer">@feed.Name</a></td>
+                <td class="text-break">@feed.FeedUrl</td>
+                <td class="text-end">@feed.Popularity</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private readonly FormModel form = new();
+    private IReadOnlyList<CategorySummary>? categories;
+    private IReadOnlyList<FeedSummary>? feeds;
+    private IReadOnlyList<string> errors = [];
+    private string? createdName;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await CategoryService.ListAsync();
+        feeds = await FeedService.ListAsync();
+    }
+
+    private async Task CreateAsync()
+    {
+        if (busy)
+            return;
+
+        busy = true;
+        try
+        {
+            createdName = null;
+            var result = await FeedService.CreateAsync(new CreateFeedRequest(
+                form.Name,
+                form.CategoryId ?? Guid.Empty,
+                form.FeedUrl,
+                form.SiteUrl,
+                form.ImageUrl,
+                form.Description,
+                form.Popularity));
+            if (result.IsError)
+            {
+                errors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            errors = [];
+            createdName = result.Value.Name;
+            form.Reset();
+            feeds = await FeedService.ListAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class FormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public Guid? CategoryId { get; set; }
+        public string FeedUrl { get; set; } = string.Empty;
+        public string SiteUrl { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
+        public string? Description { get; set; }
+        public int Popularity { get; set; }
+
+        /// <summary>Clears the per-feed fields but keeps the category, which is handy when adding several feeds.</summary>
+        public void Reset()
+        {
+            Name = FeedUrl = SiteUrl = string.Empty;
+            ImageUrl = Description = null;
+            Popularity = 0;
+        }
+    }
+}

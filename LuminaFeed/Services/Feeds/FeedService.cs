@@ -1,0 +1,91 @@
+using ErrorOr;
+using FluentValidation;
+using LuminaFeed.Data;
+using LuminaFeed.Domain;
+using LuminaFeed.Services.Categories;
+using Microsoft.EntityFrameworkCore;
+
+namespace LuminaFeed.Services.Feeds;
+
+public sealed class FeedService(
+    IDbContextFactory<ApplicationDbContext> dbFactory,
+    IValidator<CreateFeedRequest> validator) : IFeedService
+{
+    public async Task<IReadOnlyList<FeedSummary>> ListAsync(CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        return await db.Feeds
+            .AsNoTracking()
+            .OrderBy(f => f.Category.Name)
+            .ThenBy(f => f.Name)
+            .Select(f => new FeedSummary(
+                f.Id, f.Name, f.CategoryId, f.Category.Name, f.FeedUrl, f.SiteUrl, f.ImageUrl, f.Description, f.Popularity))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ErrorOr<FeedSummary>> CreateAsync(
+        CreateFeedRequest request, CancellationToken cancellationToken = default)
+    {
+        var normalized = request with
+        {
+            Name = request.Name?.Trim() ?? string.Empty,
+            FeedUrl = request.FeedUrl?.Trim() ?? string.Empty,
+            SiteUrl = request.SiteUrl?.Trim() ?? string.Empty,
+            ImageUrl = NullIfBlank(request.ImageUrl),
+            Description = NullIfBlank(request.Description),
+        };
+
+        var validation = await validator.ValidateAsync(normalized, cancellationToken);
+        if (!validation.IsValid)
+            return validation.ToErrors();
+
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var categoryName = await db.Categories
+            .Where(c => c.Id == normalized.CategoryId)
+            .Select(c => c.Name)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (categoryName is null)
+            return CategoryErrors.NotFound(normalized.CategoryId);
+
+        if (await FeedUrlExistsAsync(db, normalized.FeedUrl, cancellationToken))
+            return FeedErrors.DuplicateFeedUrl(normalized.FeedUrl);
+
+        var feed = new Feed
+        {
+            Name = normalized.Name,
+            CategoryId = normalized.CategoryId,
+            FeedUrl = normalized.FeedUrl,
+            SiteUrl = normalized.SiteUrl,
+            ImageUrl = normalized.ImageUrl,
+            Description = normalized.Description,
+            Popularity = normalized.Popularity,
+        };
+        db.Feeds.Add(feed);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Lost a race against a concurrent create on the unique FeedUrl index; anything else is a real fault.
+            await using var check = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (await FeedUrlExistsAsync(check, normalized.FeedUrl, cancellationToken))
+                return FeedErrors.DuplicateFeedUrl(normalized.FeedUrl);
+            throw;
+        }
+
+        return new FeedSummary(
+            feed.Id, feed.Name, feed.CategoryId, categoryName, feed.FeedUrl, feed.SiteUrl, feed.ImageUrl,
+            feed.Description, feed.Popularity);
+    }
+
+    private static Task<bool> FeedUrlExistsAsync(ApplicationDbContext db, string feedUrl, CancellationToken cancellationToken)
+    {
+        var lowered = feedUrl.ToLowerInvariant();
+        return db.Feeds.AnyAsync(f => f.FeedUrl.ToLower() == lowered, cancellationToken);
+    }
+
+    private static string? NullIfBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

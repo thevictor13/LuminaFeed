@@ -53,7 +53,9 @@ seed data hinges on its results. `G0.3` is the long pole among the code tasks. P
 One deliberately thin path end-to-end to de-risk integration. Everything here is minimal
 (happy-path only); polish comes in Phase 2. Introduces the `INotificationService` abstraction.
 
-- [ ] **S1 — Admin: create category + feed.** Minimal create/list only. _(needs G0.3, G0.4)_
+> Detailed plan for the whole phase: [`P1-walking-skeleton.md`](./P1-walking-skeleton.md).
+
+- [x] **S1 — Admin: create category + feed.** Minimal create/list only. _(needs G0.3, G0.4)_ ✅ **Done** — `/admin/categories` + `/admin/feeds` over `ICategoryService` / `IFeedService` (ErrorOr + FluentValidation); persistence access switched to `IDbContextFactory`. Feature: [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
 - [ ] **S2 — Public: minimal feed list.** Show the feed as a card. No ordering/filter/pagination. _(needs S1)_
   **Also removes the leftover stock-template demo UI** (deferred here from the G0.9 review) when the real public view
   replaces it: delete `Components/Pages/{Counter,Weather,Auth}.razor`; replace `Home.razor`'s "Hello, world!"

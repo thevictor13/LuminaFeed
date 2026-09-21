@@ -25,6 +25,9 @@ Identity's string key, so it is the one persisted entity not on a GUID v7 id.
 
 - **`ApplicationDbContext`** — `IdentityDbContext<ApplicationUser>` with `DbSet`s for the four entities;
   `ApplyConfigurationsFromAssembly` auto-discovers one `IEntityTypeConfiguration` per entity in `Data/Configurations/`.
+  Registered through **`AddDbContextFactory`** (since S1): application services create a short-lived context per
+  operation via `IDbContextFactory<ApplicationDbContext>`, while Identity and the seeders keep using the scoped
+  context the same call registers — see [Admin Catalogue Management](./admin-catalog-management.md).
 - **Unique indexes** — `Category.Name`, `Feed.FeedUrl`, `Subscription (UserId, FeedId)`, `Article (FeedId, ExternalId)`.
 - **Sort index** — `Feed (CategoryId, Popularity)` backs the public list's default ordering (feeds by popularity within a category).
 - **Delete behaviour** — `Feed → Category` **Restrict** (can't delete a category with feeds); `Article → Feed` **Cascade**;

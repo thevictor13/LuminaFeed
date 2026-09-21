@@ -1,0 +1,110 @@
+@page "/admin/categories"
+@attribute [Authorize(Policy = AdminAuthorization.PolicyName)]
+@rendermode InteractiveServer
+
+@using LuminaFeed.Services.Categories
+
+@inject ICategoryService CategoryService
+
+<PageTitle>Categories — Admin</PageTitle>
+
+<h1>Categories</h1>
+
+<p><a href="admin">&larr; Admin</a></p>
+
+<h2 class="h4">Add a category</h2>
+
+<ErrorList Messages="errors"/>
+@if (createdName is not null)
+{
+    <div class="alert alert-success" role="status">Category "@createdName" was added.</div>
+}
+
+<EditForm Model="form" OnSubmit="CreateAsync" class="mb-4">
+    <div class="mb-3">
+        <label for="category-name" class="form-label">Name</label>
+        <InputText id="category-name" @bind-Value="form.Name" class="form-control" maxlength="@CreateCategoryRequestValidator.NameMaxLength"/>
+    </div>
+    <div class="mb-3">
+        <label for="category-description" class="form-label">Description <span class="text-secondary">(optional)</span></label>
+        <InputTextArea id="category-description" @bind-Value="form.Description" class="form-control" rows="2"/>
+    </div>
+    <button type="submit" class="btn btn-primary" disabled="@busy">Add category</button>
+</EditForm>
+
+<h2 class="h4">All categories</h2>
+
+@if (categories is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (categories.Count == 0)
+{
+    <p>No categories yet.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Description</th>
+            <th scope="col" class="text-end">Feeds</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var category in categories)
+        {
+            <tr @key="category.Id">
+                <td>@category.Name</td>
+                <td>@category.Description</td>
+                <td class="text-end">@category.FeedCount</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private readonly FormModel form = new();
+    private IReadOnlyList<CategorySummary>? categories;
+    private IReadOnlyList<string> errors = [];
+    private string? createdName;
+    private bool busy;
+
+    protected override async Task OnInitializedAsync() => categories = await CategoryService.ListAsync();
+
+    private async Task CreateAsync()
+    {
+        if (busy)
+            return;
+
+        busy = true;
+        try
+        {
+            createdName = null;
+            var result = await CategoryService.CreateAsync(new CreateCategoryRequest(form.Name, form.Description));
+            if (result.IsError)
+            {
+                errors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            errors = [];
+            createdName = result.Value.Name;
+            form.Name = string.Empty;
+            form.Description = null;
+            categories = await CategoryService.ListAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private sealed class FormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+}

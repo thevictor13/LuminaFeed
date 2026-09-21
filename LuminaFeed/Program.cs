@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,9 @@ using LuminaFeed.Components.Account;
 using LuminaFeed.Data;
 using LuminaFeed.Data.Seed;
 using LuminaFeed.Options;
+using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
+using LuminaFeed.Services.Feeds;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,11 +31,19 @@ builder.Services.AddAuthentication(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
                        throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// A factory rather than a plain AddDbContext: Interactive Server circuits and the polling background
+// service outlive a request, so application services create a short-lived context per operation.
+// AddDbContextFactory also registers a scoped ApplicationDbContext, which Identity and the seeders use.
+builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<AdminUserSeeder>();
+
+// Application services (ErrorOr results, FluentValidation request validators).
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IFeedService, FeedService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
