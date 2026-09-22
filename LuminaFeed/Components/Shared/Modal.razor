@@ -1,8 +1,9 @@
 @* A minimal Bootstrap modal driven entirely by Blazor state. Only Bootstrap's CSS is loaded (no bootstrap.js),
    so the dialog is plain conditionally-rendered markup — it stays inside the SignalR circuit and is bUnit-testable.
-   Rendered only while Visible; the caller supplies the body (an edit form or a confirmation) as ChildContent.
-   The backdrop is static (clicking it does not close the dialog) so an in-progress edit isn't lost by a stray click,
-   but Escape closes it (an intentional keypress, not a stray click). Focus moves into the dialog when it opens.
+   Rendered only while Visible; the caller supplies the body (an edit form or a confirmation) as ChildContent, and
+   optional action buttons as Footer. The backdrop is static (clicking it does not close the dialog) so an in-progress
+   edit isn't lost by a stray click, but Escape closes it (an intentional keypress, not a stray click) — unless
+   CloseDisabled is set (e.g. mid-save), which also disables the header close button. Focus moves in when it opens.
 
    Scope note: on close, focus is not programmatically returned to the invoking control. Doing that would need either
    the trigger's ElementReference — which the callers render inside a @foreach, where Blazor can't capture a per-row
@@ -18,11 +19,18 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 id="@titleId" class="modal-title h5">@Title</h2>
-                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => OnClose.InvokeAsync()"></button>
+                    <button type="button" class="btn-close" aria-label="Close" disabled="@CloseDisabled"
+                            @onclick="() => OnClose.InvokeAsync()"></button>
                 </div>
                 <div class="modal-body">
                     @ChildContent
                 </div>
+                @if (Footer is not null)
+                {
+                    <div class="modal-footer">
+                        @Footer
+                    </div>
+                }
             </div>
         </div>
     </div>
@@ -38,6 +46,13 @@
     [Parameter] public bool Visible { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Optional action buttons rendered in the modal footer (e.g. Save / Cancel / a destructive action).</summary>
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>When set, the header close button is disabled and Escape does not close the dialog (e.g. a save in flight).</summary>
+    [Parameter] public bool CloseDisabled { get; set; }
+
     [Parameter] public EventCallback OnClose { get; set; }
 
     protected override void OnParametersSet()
@@ -60,7 +75,7 @@
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Escape")
+        if (e.Key == "Escape" && !CloseDisabled)
             await OnClose.InvokeAsync();
     }
 }

@@ -7,6 +7,7 @@ using LuminaFeed.Data;
 using LuminaFeed.Domain;
 using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LuminaFeed.Tests;
@@ -76,6 +77,18 @@ public sealed class SubscribeDialogComponentTests : BunitContext
         Assert.False(IsChecked(cut.Find("#sub-slack")));
         Assert.Empty(cut.FindAll("#sub-webhook"));         // hidden until Slack is on
         Assert.Empty(cut.FindAll(".modal-footer .btn-danger")); // no full-unsubscribe for a new subscription
+    }
+
+    [Fact]
+    public void PressingEscape_ClosesTheDialog()
+    {
+        // The dialog renders through the shared Modal, which closes on Escape (a11y parity with the admin dialogs).
+        var cut = RenderDialog();
+        cut.WaitForElement(".modal");
+
+        cut.Find(".modal").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+        cut.WaitForAssertion(() => Assert.Equal(1, _closeCount));
     }
 
     [Fact]

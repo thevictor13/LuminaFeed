@@ -83,7 +83,7 @@ public sealed class HomePageComponentTests : BunitContext
         await cut.WaitForElement(SubscribeButton).ClickAsync(new MouseEventArgs());
 
         cut.WaitForAssertion(() =>
-            Assert.Contains("Subscribe to BBC News", cut.Find("#sub-dialog-title").TextContent));
+            Assert.Contains("Subscribe to BBC News", cut.Find(".modal-title").TextContent));
     }
 
     [Fact]

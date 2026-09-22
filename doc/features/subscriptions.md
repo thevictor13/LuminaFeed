@@ -26,9 +26,13 @@ fixed email target. The card button's red/primary state flips from the dialog's 
 
 ## The dialog (`Components/Shared/SubscribeDialog.razor`)
 
-A **Bootstrap-styled modal driven entirely by Blazor** — rendered with `@if (Visible)` (`.modal.show` +
-`.modal-backdrop`), **no Bootstrap JS bundle and no JS interop**, so it works in the circuit and under bUnit alike
-(bUnit does not run `blazor.web.js`). On open it loads the current state via `GetSubscriptionForEditAsync`.
+Rendered through the shared **`Components/Shared/Modal.razor`** — a Blazor-driven Bootstrap modal with **no JS bundle
+and no JS interop**, so it works in the circuit and under bUnit alike (bUnit does not run `blazor.web.js`). Reusing the
+shared modal gives the dialog the same accessibility as the admin dialogs: **focus moves into the dialog on open**,
+**Escape closes it**, and the **backdrop is static** (a stray click never discards an in-progress edit); while a save
+is in flight the close button is disabled and Escape is ignored (`CloseDisabled`). The dialog supplies its switches as
+the modal body and its Save/Cancel/Unsubscribe buttons as the modal `Footer` (the Save button submits the body's
+`EditForm` via the HTML `form=` association). On open it loads the current state via `GetSubscriptionForEditAsync`.
 
 - **Email switch** — a Bootstrap `form-switch`; defaults **on** for a new subscription. Email always targets the
   account's registered, verified address (`RequireConfirmedAccount`); there is nowhere to enter another one.

@@ -3,64 +3,53 @@
 @inject ISubscriptionService SubscriptionService
 
 @* The channel dialog (C1): email + Slack switches, a validated/prefilled Slack webhook, and per-channel or full
-   unsubscribe. A Bootstrap-styled modal driven purely by Blazor (no JS bundle), so it works in the circuit and in
-   bUnit alike. It inherits the host page's InteractiveServer render mode. *@
-@if (Visible)
-{
-    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="sub-dialog-title">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title h5" id="sub-dialog-title">Subscribe to @FeedName</h2>
-                    <button type="button" class="btn-close" aria-label="Close" disabled="@busy" @onclick="CloseAsync"></button>
-                </div>
-                <EditForm Model="form" OnSubmit="SaveAsync">
-                    <div class="modal-body">
-                        <p class="text-secondary small mb-3">
-                            Choose how you want to be alerted when <strong>@FeedName</strong> publishes something new.
-                        </p>
+   unsubscribe. Rendered through the shared <Modal> (focus-on-open, Escape-to-close, static backdrop) — no JS bundle,
+   so it works in the circuit and in bUnit alike. It inherits the host page's InteractiveServer render mode.
+   The Save button lives in the modal footer but submits the body's EditForm via the HTML form= association. *@
+<Modal Visible="Visible" Title="@($"Subscribe to {FeedName}")" OnClose="CloseAsync" CloseDisabled="busy">
+    <ChildContent>
+        <EditForm id="sub-form" Model="form" OnSubmit="SaveAsync">
+            <p class="text-secondary small mb-3">
+                Choose how you want to be alerted when <strong>@FeedName</strong> publishes something new.
+            </p>
 
-                        <div class="form-check form-switch mb-2">
-                            <InputCheckbox id="sub-email" role="switch" class="form-check-input" @bind-Value="form.EmailEnabled"/>
-                            <label class="form-check-label" for="sub-email">
-                                Email@(string.IsNullOrEmpty(AccountEmail) ? "" : $" — {AccountEmail}")
-                            </label>
-                        </div>
-
-                        <div class="form-check form-switch mb-2">
-                            <InputCheckbox id="sub-slack" role="switch" class="form-check-input" @bind-Value="form.SlackEnabled"/>
-                            <label class="form-check-label" for="sub-slack">Slack</label>
-                        </div>
-
-                        @if (form.SlackEnabled)
-                        {
-                            <div class="mb-2">
-                                <label for="sub-webhook" class="form-label small">Slack webhook URL</label>
-                                <InputText id="sub-webhook" class="form-control" @bind-Value="form.SlackWebhookUrl"
-                                           maxlength="@Subscription.SlackWebhookUrlMaxLength"
-                                           placeholder="@($"{Subscription.SlackWebhookUrlPrefix}/...")"/>
-                                <div class="form-text">The webhook posts to its own default channel.</div>
-                            </div>
-                        }
-
-                        <ErrorList Messages="errors"/>
-                    </div>
-                    <div class="modal-footer">
-                        @if (Exists)
-                        {
-                            @* Its accessible name is the visible "Unsubscribe" within the dialog titled for this feed —
-                               deliberately not the card button's aria-label, so the two never collide. *@
-                            <button type="button" class="btn btn-danger me-auto" disabled="@busy" @onclick="RemoveAsync">Unsubscribe</button>
-                        }
-                        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="CloseAsync">Cancel</button>
-                        <button type="submit" class="btn btn-primary" disabled="@busy">Save</button>
-                    </div>
-                </EditForm>
+            <div class="form-check form-switch mb-2">
+                <InputCheckbox id="sub-email" role="switch" class="form-check-input" @bind-Value="form.EmailEnabled"/>
+                <label class="form-check-label" for="sub-email">
+                    Email@(string.IsNullOrEmpty(AccountEmail) ? "" : $" — {AccountEmail}")
+                </label>
             </div>
-        </div>
-    </div>
-    <div class="modal-backdrop fade show"></div>
-}
+
+            <div class="form-check form-switch mb-2">
+                <InputCheckbox id="sub-slack" role="switch" class="form-check-input" @bind-Value="form.SlackEnabled"/>
+                <label class="form-check-label" for="sub-slack">Slack</label>
+            </div>
+
+            @if (form.SlackEnabled)
+            {
+                <div class="mb-2">
+                    <label for="sub-webhook" class="form-label small">Slack webhook URL</label>
+                    <InputText id="sub-webhook" class="form-control" @bind-Value="form.SlackWebhookUrl"
+                               maxlength="@Subscription.SlackWebhookUrlMaxLength"
+                               placeholder="@($"{Subscription.SlackWebhookUrlPrefix}/...")"/>
+                    <div class="form-text">The webhook posts to its own default channel.</div>
+                </div>
+            }
+
+            <ErrorList Messages="errors"/>
+        </EditForm>
+    </ChildContent>
+    <Footer>
+        @if (Exists)
+        {
+            @* Its accessible name is the visible "Unsubscribe" within the dialog titled for this feed —
+               deliberately not the card button's aria-label, so the two never collide. *@
+            <button type="button" class="btn btn-danger me-auto" disabled="@busy" @onclick="RemoveAsync">Unsubscribe</button>
+        }
+        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="CloseAsync">Cancel</button>
+        <button type="submit" form="sub-form" class="btn btn-primary" disabled="@busy">Save</button>
+    </Footer>
+</Modal>
 
 @code {
     /// <summary>The feed the dialog manages the subscription for.</summary>
