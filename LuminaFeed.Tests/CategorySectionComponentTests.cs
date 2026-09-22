@@ -24,6 +24,12 @@ public sealed class CategorySectionComponentTests : BunitContext
             .Add(p => p.Category, category)
             .Add(p => p.LoginUrl, "Account/Login"));
 
+    private IRenderedComponent<CategorySection> RenderSection(CategoryFeeds category, int pageSize) =>
+        Render<CategorySection>(ps => ps
+            .Add(p => p.Category, category)
+            .Add(p => p.PageSize, pageSize)
+            .Add(p => p.LoginUrl, "Account/Login"));
+
     private static string MoreButton(string category) => $"button[aria-label='Show more {category} feeds']";
 
     [Fact]
@@ -56,6 +62,48 @@ public sealed class CategorySectionComponentTests : BunitContext
 
         Assert.Equal(5, cut.FindAll(".feed-card").Count);
         Assert.Empty(cut.FindAll(MoreButton("Technology")));
+    }
+
+    // --- B3: the filter view raises the per-category cap to 30 (More adds 30) -----------------------
+
+    [Fact]
+    public async Task WithPageSizeThirty_ShowsUpToThirty_AndMoreAddsThirty()
+    {
+        var cut = RenderSection(WithFeeds("Technology", 35), pageSize: 30);
+
+        Assert.Equal(30, cut.FindAll(".feed-card").Count);
+        Assert.NotEmpty(cut.FindAll(MoreButton("Technology")));
+
+        await cut.Find(MoreButton("Technology")).ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(35, cut.FindAll(".feed-card").Count);
+            Assert.Empty(cut.FindAll(MoreButton("Technology")));
+        });
+    }
+
+    [Fact]
+    public async Task ChangingPageSize_RestartsTheVisibleWindow()
+    {
+        var category = WithFeeds("Technology", 40);
+        var cut = RenderSection(category, pageSize: 5);
+
+        // Grow the window past a plain page, then narrow the page (as clearing the filter would).
+        await cut.Find(MoreButton("Technology")).ClickAsync(new MouseEventArgs());
+        cut.WaitForAssertion(() => Assert.Equal(10, cut.FindAll(".feed-card").Count));
+
+        cut.Render(ps => ps
+            .Add(p => p.Category, category)
+            .Add(p => p.PageSize, 30)
+            .Add(p => p.LoginUrl, "Account/Login"));
+        cut.WaitForAssertion(() => Assert.Equal(30, cut.FindAll(".feed-card").Count));
+
+        cut.Render(ps => ps
+            .Add(p => p.Category, category)
+            .Add(p => p.PageSize, 5)
+            .Add(p => p.LoginUrl, "Account/Login"));
+        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindAll(".feed-card").Count));
     }
 
     [Fact]

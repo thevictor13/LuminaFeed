@@ -1,0 +1,64 @@
+@* A Blazor-driven category filter (B3). Like OrderMenu, the app loads Bootstrap's CSS but not its JS, so a
+   `data-bs-toggle="dropdown"` menu would never open — open/close is handled here in C#. A transparent full-viewport
+   backdrop closes it on an outside click, and Escape closes it too. Styled with Bootstrap's `.dropdown` classes.
+   The parent (Home) owns the selection and narrows the list to the chosen category. *@
+<div class="dropdown category-filter" @onkeydown="OnKeyDown">
+    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            aria-haspopup="menu" aria-expanded="@(open ? "true" : "false")"
+            aria-label="Filter feeds by category" @onclick="Toggle">
+        Category: @SelectedLabel
+    </button>
+    @if (open)
+    {
+        <div class="category-filter-backdrop" @onclick="Close"></div>
+        <div class="dropdown-menu show category-filter-list" role="menu">
+            <button type="button" role="menuitem"
+                    class="dropdown-item @(Selected is null ? "active" : null)"
+                    aria-current="@(Selected is null ? "true" : null)"
+                    @onclick="@(() => SelectAsync(null))">
+                All feeds
+            </button>
+            @foreach (var option in Options)
+            {
+                <button type="button" role="menuitem"
+                        class="dropdown-item @(option.Id == Selected ? "active" : null)"
+                        aria-current="@(option.Id == Selected ? "true" : null)"
+                        @onclick="@(() => SelectAsync(option.Id))">
+                    @option.Name
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool open;
+
+    /// <summary>The categories to offer, in display order (id + name).</summary>
+    [Parameter] public IReadOnlyList<(Guid Id, string Name)> Options { get; set; } = [];
+
+    /// <summary>The selected category, or null for "All feeds".</summary>
+    [Parameter] public Guid? Selected { get; set; }
+
+    [Parameter] public EventCallback<Guid?> OnChange { get; set; }
+
+    private string SelectedLabel =>
+        Selected is { } id ? Options.FirstOrDefault(o => o.Id == id).Name ?? "All" : "All";
+
+    private void Toggle() => open = !open;
+
+    private void Close() => open = false;
+
+    private async Task SelectAsync(Guid? option)
+    {
+        open = false;
+        if (option != Selected)
+            await OnChange.InvokeAsync(option);
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            open = false;
+    }
+}

@@ -39,19 +39,35 @@
 </section>
 
 @code {
-    private const int PageSize = 5;
-    private int visibleCount = PageSize;
+    private int visibleCount;
+    private int appliedPageSize = -1;
 
     // The chosen order for this category (B2). Ephemeral, like visibleCount — not persisted across the circuit
     // hand-off (that would grow the 32 KB circuit-start payload); the default matches the service's order.
     private FeedOrder order = FeedOrder.PopularityDesc;
 
     [Parameter, EditorRequired] public CategoryFeeds Category { get; set; } = default!;
+
+    /// <summary>Cards shown up front and revealed per "More" click. 5 on the main view; 30 when the category
+    /// filter (B3) narrows the page to this one category.</summary>
+    [Parameter] public int PageSize { get; set; } = 5;
+
     [Parameter] public bool IsAuthenticated { get; set; }
     [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
     [Parameter] public IReadOnlySet<Guid> SubscribedFeedIds { get; set; } = new HashSet<Guid>();
     [Parameter] public Guid? BusyFeedId { get; set; }
     [Parameter] public EventCallback<Guid> OnToggleSubscription { get; set; }
+
+    // Restart the visible window whenever the page size changes (e.g. the filter view raises the cap to 30, or
+    // clearing it drops back to 5) — but not on the frequent re-renders from a subscribe toggle.
+    protected override void OnParametersSet()
+    {
+        if (PageSize != appliedPageSize)
+        {
+            visibleCount = PageSize;
+            appliedPageSize = PageSize;
+        }
+    }
 
     private void ShowMore() => visibleCount += PageSize;
 

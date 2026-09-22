@@ -27,9 +27,14 @@ else if (Categories.Count == 0)
 }
 else
 {
-    @foreach (var category in Categories)
+    <div class="mb-4">
+        <CategoryFilter Options="filterOptions" Selected="selectedCategoryId" OnChange="OnFilterChanged"/>
+    </div>
+
+    @foreach (var category in VisibleCategories)
     {
         <CategorySection Category="category"
+                         PageSize="@(selectedCategoryId is null ? DefaultPageSize : FilteredPageSize)"
                          IsAuthenticated="@(userId is not null)"
                          LoginUrl="@loginUrl"
                          SubscribedFeedIds="SubscribedFeedIds"
@@ -40,10 +45,18 @@ else
 }
 
 @code {
+    // The main view shows 5 cards per category; the B3 category filter narrows the page to one category, 30 deep.
+    private const int DefaultPageSize = 5;
+    private const int FilteredPageSize = 30;
+
     private string? userId;
     private string loginUrl = "Account/Login";
     private Guid? busyFeedId;
     private IReadOnlyList<string> errors = [];
+
+    // The selected category filter (B3). Ephemeral, like the per-section paging/order — not persisted across the
+    // circuit hand-off; null means "All feeds".
+    private Guid? selectedCategoryId;
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
 
@@ -57,6 +70,18 @@ else
     [PersistentState] public HashSet<Guid>? SubscribedIds { get; set; }
 
     private HashSet<Guid> SubscribedFeedIds => SubscribedIds ??= [];
+
+    // Filter options come from the already-loaded catalogue — no extra query.
+    private IReadOnlyList<(Guid Id, string Name)> filterOptions =>
+        Categories is null ? [] : [.. Categories.Select(c => (c.CategoryId, c.CategoryName))];
+
+    // "All feeds" shows every category; a selection narrows to the one (if it still exists).
+    private IReadOnlyList<CategoryFeeds> VisibleCategories =>
+        Categories is null
+            ? []
+            : selectedCategoryId is { } id
+                ? [.. Categories.Where(c => c.CategoryId == id)]
+                : Categories;
 
     protected override async Task OnInitializedAsync()
     {
@@ -75,6 +100,8 @@ else
         Categories = await FeedService.ListByCategoryAsync();
         SubscribedIds ??= [.. await SubscriptionService.GetSubscribedFeedIdsAsync(userId)];
     }
+
+    private void OnFilterChanged(Guid? categoryId) => selectedCategoryId = categoryId;
 
     private async Task ToggleSubscriptionAsync(Guid feedId)
     {

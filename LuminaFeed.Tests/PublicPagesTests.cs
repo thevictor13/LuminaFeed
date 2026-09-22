@@ -45,6 +45,20 @@ public sealed class PublicPagesTests
     }
 
     [Fact]
+    public async Task Home_Anonymous_RendersTheCategoryFilterOnce()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/");
+
+        // B3: a single top-level category filter control (the per-section order controls are separate).
+        Assert.Equal(1, CountOf(html, "aria-label=\"Filter feeds by category\""));
+        // It is closed on first render, so the whole grouped catalogue is served (cap 5 per category).
+        Assert.Equal(VisibleCards, CountOf(html, "class=\"card h-100 feed-card\""));
+    }
+
+    [Fact]
     public async Task Home_ShowsAFeedTheAdminJustAdded()
     {
         using var factory = new TestAppFactory();

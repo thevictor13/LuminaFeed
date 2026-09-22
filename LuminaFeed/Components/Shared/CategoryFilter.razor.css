@@ -1,0 +1,11 @@
+/* Bootstrap's dropdown z-index is 1000; the backdrop sits at that level to catch outside clicks, and the open
+   menu sits just above it. No Bootstrap JS is involved — open/close is driven by the component. */
+.category-filter-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+}
+
+.category-filter-list {
+    z-index: 1001;
+}

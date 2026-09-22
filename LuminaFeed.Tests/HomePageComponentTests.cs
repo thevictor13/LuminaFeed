@@ -156,6 +156,41 @@ public sealed class HomePageComponentTests : BunitContext
         Assert.False(unchanged.HasAttribute("disabled"));
     }
 
+    // --- B3: the category filter ------------------------------------------------------------------
+
+    [Fact]
+    public async Task SelectingACategory_ShowsOnlyThatCategory_AtTheDeeperCap()
+    {
+        UseSubscriptions();
+        AddAuthorization().SetNotAuthorized();
+        // A second category with more than five feeds, so the filter is observable and its deeper (30) cap shows.
+        var techId = _db.AddCategory("Technology").Id;
+        for (var i = 1; i <= 6; i++)
+            _db.AddFeed(techId, $"Tech Daily {i:D2}");
+
+        var cut = RenderHome();
+        cut.WaitForAssertion(() =>
+        {
+            var headers = cut.FindAll("section h2").Select(h => h.TextContent.Trim()).ToList();
+            Assert.Contains("World News", headers);
+            Assert.Contains("Technology", headers);
+        });
+        // Unfiltered, Technology is capped at five with a More button.
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Show more Technology feeds']"));
+
+        await cut.Find("button[aria-label='Filter feeds by category']").ClickAsync(new MouseEventArgs());
+        var tech = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Trim() == "Technology");
+        await tech.ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            // Only the chosen category remains, now showing all six (deeper cap) with no More button.
+            Assert.Equal(["Technology"], cut.FindAll("section h2").Select(h => h.TextContent.Trim()));
+            Assert.Equal(6, cut.FindAll(".feed-card").Count);
+            Assert.Empty(cut.FindAll("button[aria-label='Show more Technology feeds']"));
+        });
+    }
+
     /// <summary>Delegates to the real service but holds every subscribe call until released.</summary>
     private sealed class GatedSubscriptionService(ISubscriptionService inner) : ISubscriptionService
     {
