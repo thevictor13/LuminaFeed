@@ -192,6 +192,40 @@ public sealed class HomePageComponentTests : BunitContext
         });
     }
 
+    [Fact]
+    public async Task ClearingTheFilter_RestoresAllCategories_AtTheDefaultCap()
+    {
+        UseSubscriptions();
+        AddAuthorization().SetNotAuthorized();
+        var techId = _db.AddCategory("Technology").Id;
+        for (var i = 1; i <= 6; i++)
+            _db.AddFeed(techId, $"Tech Daily {i:D2}");
+
+        var cut = RenderHome();
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("section h2").Count));
+
+        // Narrow to Technology…
+        await cut.Find("button[aria-label='Filter feeds by category']").ClickAsync(new MouseEventArgs());
+        var tech = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Trim() == "Technology");
+        await tech.ClickAsync(new MouseEventArgs());
+        cut.WaitForAssertion(() =>
+            Assert.Equal(["Technology"], cut.FindAll("section h2").Select(h => h.TextContent.Trim())));
+
+        // …then clear back to "All feeds".
+        await cut.Find("button[aria-label='Filter feeds by category']").ClickAsync(new MouseEventArgs());
+        var all = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Trim() == "All feeds");
+        await all.ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            var headers = cut.FindAll("section h2").Select(h => h.TextContent.Trim()).ToList();
+            Assert.Contains("World News", headers);
+            Assert.Contains("Technology", headers);
+            // Technology is back to the default cap of five, with its More button.
+            Assert.NotEmpty(cut.FindAll("button[aria-label='Show more Technology feeds']"));
+        });
+    }
+
     /// <summary>Delegates to the real service but holds every subscribe call until released.</summary>
     private sealed class GatedSubscriptionService(ISubscriptionService inner) : ISubscriptionService
     {

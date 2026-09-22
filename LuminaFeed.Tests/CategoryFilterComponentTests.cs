@@ -78,6 +78,25 @@ public sealed class CategoryFilterComponentTests : BunitContext
     }
 
     [Fact]
+    public async Task SelectingAllFeeds_FromACategory_RaisesOnChangeWithNull_AndClosesTheMenu()
+    {
+        Guid? chosen = Tech.Id;
+        var raised = 0;
+        var cut = RenderFilter(selected: Tech.Id, onChange: id => { chosen = id; raised++; });
+
+        await cut.Find(Trigger).ClickAsync(new MouseEventArgs());
+        var all = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Trim() == "All feeds");
+        await all.ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(1, raised);
+            Assert.Null(chosen); // "All feeds" clears the selection
+            Assert.Empty(cut.FindAll(".dropdown-menu.show"));
+        });
+    }
+
+    [Fact]
     public async Task ClickingTheBackdrop_ClosesTheMenu()
     {
         var cut = RenderFilter(selected: null);

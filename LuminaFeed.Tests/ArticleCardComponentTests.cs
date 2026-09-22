@@ -46,4 +46,22 @@ public sealed class ArticleCardComponentTests : BunitContext
         // The title link is always present.
         Assert.Equal("Just a title", cut.Find(".article-card h2 a").TextContent.Trim());
     }
+
+    [Fact]
+    public void EncodesUntrustedTitleAndSummary_SoInjectedMarkupIsInert()
+    {
+        // Title and summary come from an untrusted feed. Blazor auto-encodes @expr (the card must never use
+        // MarkupString), so an injected <script> is rendered as text, not as a live element.
+        var cut = RenderCard(new ArticleSummary(
+            Guid.CreateVersion7(), "<script>alert(1)</script>", "https://news.test/x",
+            "Tom & Jerry < Best", null, Published));
+
+        // No live <script> element was created; the title is inert text.
+        Assert.Empty(cut.FindAll("script"));
+        Assert.Equal("<script>alert(1)</script>", cut.Find(".article-card h2 a").TextContent);
+        // The raw markup carries the HTML-encoded forms, never the live tag or a bare ampersand.
+        Assert.Contains("&lt;script&gt;", cut.Markup);
+        Assert.DoesNotContain("<script>", cut.Markup);
+        Assert.Contains("Tom &amp; Jerry &lt; Best", cut.Markup);
+    }
 }

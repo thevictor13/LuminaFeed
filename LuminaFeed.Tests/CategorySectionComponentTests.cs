@@ -177,4 +177,28 @@ public sealed class CategorySectionComponentTests : BunitContext
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dropdown-menu.show")));
     }
+
+    // The remaining two directions, driven through the menu click (not just FeedOrdering.Sort).
+    private async Task SelectOrderAndAssertTitles(string labelPart, string[] expected)
+    {
+        var cut = RenderSection(Ordered());
+        await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
+        var option = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Contains(labelPart));
+
+        await option.ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(expected, Titles(cut));
+            Assert.Empty(cut.FindAll(".dropdown-menu.show")); // selecting closes the menu
+        });
+    }
+
+    [Fact]
+    public Task SelectingLeastPopular_ReordersByPopularityAscending() =>
+        SelectOrderAndAssertTitles("Least popular", ["Mango Post", "Alpha News", "Zebra Times"]);
+
+    [Fact]
+    public Task SelectingNameDescending_ReordersReverseAlphabetical() =>
+        SelectOrderAndAssertTitles("Z–A", ["Zebra Times", "Mango Post", "Alpha News"]);
 }
