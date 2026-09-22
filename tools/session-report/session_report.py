@@ -104,23 +104,60 @@ def user_text(message):
     return "\n".join(p for p in parts if p).strip()
 
 
-def classify_prompt(text, prompt_source):
-    """Bucket a prompt as typed / command / meta for styling."""
+# promptSource values that mark a record as something the *user* actually sent.
+HUMAN_PROMPT_SOURCES = {"typed", "queued", "suggestion_accepted"}
+
+
+def classify_user_record(text, prompt_source):
+    """Decide what a `type:user` string record really is.
+
+    Returns one of:
+      "user"    — a genuine message the user sent (typed / queued / accepted).
+      "command" — a slash-command the user invoked (e.g. /model); shown, muted.
+      "skip"    — harness plumbing that is NOT a user message and must never be
+                  shown as one: background <task-notification>s (promptSource
+                  "system"), command stdout/caveats, and interrupt markers.
+    """
     stripped = text.lstrip()
-    if stripped.startswith("<local-command-stdout>") or stripped.startswith(
-        "<bash-stdout>"
+
+    # Background task-completion notices are injected by the harness when a
+    # subagent/tool finishes; the user never sent them. They carry
+    # promptSource "system".
+    if prompt_source == "system" or stripped.startswith("<task-notification>"):
+        return "skip"
+
+    # Output/plumbing surrounding a slash command — not a user message.
+    if (
+        stripped.startswith("<local-command-stdout>")
+        or stripped.startswith("<local-command-caveat>")
+        or stripped.startswith("<bash-stdout>")
+        or stripped.startswith("Caveat:")
+        or stripped.startswith("[Request interrupted")
     ):
-        return "meta"
-    if "<command-name>" in text[:200] or "<command-message>" in text[:200]:
+        return "skip"
+
+    # The user invoking a slash command (e.g. /model). A real user action, but a
+    # command rather than a message — shown muted, never counted as a prompt.
+    if stripped.startswith("<command-name>") or "<command-message>" in text[:200]:
         return "command"
-    if stripped.startswith("Caveat:"):
-        return "meta"
-    if stripped.startswith("[Request interrupted"):
-        return "meta"
-    if prompt_source == "typed":
-        return "typed"
-    # Fall back: a plain string with no markup is a genuine prompt.
-    return "typed"
+
+    if prompt_source in HUMAN_PROMPT_SOURCES:
+        return "user"
+
+    # Unknown/absent source: trust plain prose, but drop anything still wrapped
+    # in a machine tag we don't explicitly recognise.
+    if not stripped.startswith("<"):
+        return "user"
+    return "skip"
+
+
+def clean_command_text(text):
+    """Turn a raw <command-name>…</command-name> blob into e.g. '/model foo'."""
+    name = re.search(r"<command-name>(.*?)</command-name>", text, re.S)
+    args = re.search(r"<command-args>(.*?)</command-args>", text, re.S)
+    label = name.group(1).strip() if name else text.strip()
+    extra = args.group(1).strip() if args else ""
+    return (label + (" " + extra if extra else "")).strip()
 
 
 def tool_detail(name, tool_input):
@@ -167,8 +204,12 @@ def load_session(path):
         nonlocal current_response
         if current_response is not None:
             resp = current_response
-            resp["text"] = resp["text"].strip()[:MAX_RESPONSE_CHARS]
-            resp["thinking"] = resp["thinking"].strip()[:MAX_THINKING_CHARS]
+            resp["text"] = resp["text"].strip()
+            if len(resp["text"]) > MAX_RESPONSE_CHARS:
+                resp["text"] = resp["text"][:MAX_RESPONSE_CHARS] + "\n\n… [truncated]"
+            resp["thinking"] = resp["thinking"].strip()
+            if len(resp["thinking"]) > MAX_THINKING_CHARS:
+                resp["thinking"] = resp["thinking"][:MAX_THINKING_CHARS] + "\n\n… [truncated]"
             # Only keep a response event if it carries something to show.
             if resp["text"] or resp["tools"] or resp["thinking"]:
                 events.append(resp)
@@ -222,18 +263,32 @@ def load_session(path):
                 text = user_text(message)
                 if not text:
                     continue
+                cat = classify_user_record(text, rec.get("promptSource"))
+                if cat == "skip":
+                    # Harness plumbing (e.g. <task-notification>): not a user
+                    # message. Leave any in-flight reply merged rather than
+                    # splitting it around a notification the user never sent.
+                    continue
                 flush_response()
-                kind = classify_prompt(text, rec.get("promptSource"))
-                if kind == "typed":
+                if cat == "command":
+                    events.append(
+                        {
+                            "kind": "prompt",
+                            "cls": "command",
+                            "ts": rec.get("timestamp"),
+                            "text": clean_command_text(text),
+                        }
+                    )
+                else:  # "user"
                     n_prompts += 1
-                events.append(
-                    {
-                        "kind": "prompt",
-                        "cls": kind,
-                        "ts": rec.get("timestamp"),
-                        "text": text,
-                    }
-                )
+                    events.append(
+                        {
+                            "kind": "prompt",
+                            "cls": "user",
+                            "ts": rec.get("timestamp"),
+                            "text": text,
+                        }
+                    )
 
             elif rtype == "assistant":
                 if current_response is None:
@@ -607,7 +662,7 @@ function renderSession(s, w){
   let ev = '';
   s.events.forEach(e=>{
     if(e.kind==='prompt'){
-      const who = e.cls==='command' ? 'Command' : (e.cls==='meta' ? 'System' : 'User');
+      const who = e.cls==='command' ? 'Command' : 'User';
       ev += `<div class="ev"><div class="ts">${e.ts?fmtT(new Date(e.ts).getTime()):''}</div>
         <div class="prompt ${e.cls}"><div class="who">${who}</div>
         <div class="txt">${esc(e.text)}</div></div></div>`;
