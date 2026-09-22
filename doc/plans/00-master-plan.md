@@ -66,7 +66,7 @@ subscribes → polling fetches new articles → the user receives an email. Runn
 
 ✅ **Met** — covered end to end through the real host by `WalkingSkeletonTests`, and exercised once against live publishers (RSS, Atom and RDF). Deliberate skeleton gaps handed to Phase 2: no retry of a failed digest and no conditional GETs (C4), no unsubscribe link/headers (C5), whole-row unsubscribe only (C1/C5), New Scientist answers 406 to .NET's HTTP stack (C4).
 
-- [ ] 🗂 **P1.R — Phase 1 review & remediation.** Senior architecture review of S1–S5 and the fixes it surfaced: the double-encoded Identity confirmation links (self-registration could never be confirmed), the register-path return URL, the idle-feed catch-up cap, parser input bounds, a `NewArticle` DTO at the notification boundary, entity-owned column limits, the polling loop removed from host tests, bUnit component tests for the interactive path, and the doc re-baseline below. _(after S5)_ — see [`P1.R-phase-1-review-remediation.md`](./P1.R-phase-1-review-remediation.md).
+- [x] 🗂 **P1.R — Phase 1 review & remediation.** Senior architecture review of S1–S5 (verdict: the skeleton is sound) and the fixes it surfaced. ✅ **Done** — the double-encoded Identity confirmation links (self-registration could never be confirmed) and the register-path `ReturnUrl`; the idle-feed **catch-up cap** (`Polling:CatchUpAfterMinutes`) and an interval upper bound; bounded, linear markup stripping in the parser; a `NewArticle` DTO at the notification boundary; entity-owned `*MaxLength` constants; test hygiene (no hosted polling loop in host tests, derived seed counts, `FakeTimeProvider`); **bUnit** component tests for the interactive subscribe and admin-form paths; accessible button names; the doc re-baseline below. 254 tests. Plan + findings: [`P1.R-phase-1-review-remediation.md`](./P1.R-phase-1-review-remediation.md).
 
 ---
 
@@ -84,14 +84,14 @@ dependencies are called out.
 - [ ] 🗂 **B1 — Feed list by category** (cards + image, 5/category, "more" +5, single-row desktop / wrap mobile). _(needs S2, A2)_
 - [ ] 🗂 **B2 — Ordering control** (popularity default, name; asc/desc) in category header. Popularity = the fixed `Feed.Popularity` figure seeded in G0.7. _(needs B1)_
 - [ ] 🗂 **B3 — Category filter** (single category, cap 30, "more" +30). _(needs B1)_
-- [ ] 🗂 **B4 — Feed detail page** (article cards: image, first paragraphs, title, subject to availability; subscribe/unsubscribe button). _(needs G0.3; content from S4)_
+- [ ] 🗂 **B4 — Feed detail page** (article cards: image, first paragraphs, title, subject to availability; subscribe/unsubscribe button). _(needs G0.3; content from S4)_ **Notes from P1.R:** the spec gives each card two buttons, one leading here — today's *Visit site* (external) button becomes / joins the feed-page button. Ordering articles by `PublishedAt` in SQL relies on the **UTC invariant** (every persisted `DateTimeOffset` is UTC; SQLite compares them as text).
 
 ### Track C — Subscriptions & notifications
-- [ ] 🗂 **C1 — Full subscribe flow** (dialog with email + Slack switches; unauthenticated → login/register preserving return location via query param; unsubscribe-in-red state). **Enforce the `SlackEnabled ⇒ SlackWebhookUrl` invariant** (and the `https://hooks.slack.com/services` prefix rule) here via FluentValidation — the `Subscription` entity documents but does not enforce it. _(needs S3, auth)_
-- [ ] 🗂 **C2 — Slack notifications** (`SlackNotificationService` via Slack.Webhooks; validate URL starts `https://hooks.slack.com/services`; LastOrDefault prefill; default channel). _(needs abstraction; parallel with email)_
-- [ ] 🗂 **C3 — Email notifications hardening** (article templates; Outlook table-based layout + Outlook-only duplicated buttons). _(needs S5, G0.6)_
-- [ ] 🗂 **C4 — Polling hardening** (track feeds with ≥1 subscriber; ETag/Last-Modified + 304; **resolve images** — use the RSS-provided image, else scrape `og:image` from the article target; produce email→articles dictionary; dispatch to email/Slack per user choice). _(needs S4, C2, C3)_
-- [ ] 🗂 **C5 — Unsubscribe** (RFC 8058 HMAC-signed one-click; unsubscribe page, single button; per-channel or both; Unsubscribe link + List-Unsubscribe headers). _(needs C3)_
+- [ ] 🗂 **C1 — Full subscribe flow** (dialog with email + Slack switches; unsubscribe-in-red state; per-channel unsubscribe). **Enforce the `SlackEnabled ⇒ SlackWebhookUrl` invariant** (and the `https://hooks.slack.com/services` prefix rule) here via FluentValidation — the `Subscription` entity documents but does not enforce it. _Already done by S3 + P1.R:_ unauthenticated → login/register preserving the return location (`ReturnUrl` through login, registration, the confirmation email and the confirm page's Continue button), the red Unsubscribe state, accessible button names. _(needs S3, auth)_
+- [ ] 🗂 **C2 — Slack notifications** (`SlackNotificationService` via Slack.Webhooks; validate URL starts `https://hooks.slack.com/services`; LastOrDefault prefill; default channel). The poll result stays keyed by email; its value grows from `IReadOnlyList<NewArticle>` into a per-subscription digest (channels, webhook, subscription id) so the dispatcher can fan out per channel. _(needs abstraction; parallel with email)_
+- [ ] 🗂 **C3 — Email notifications hardening** (article templates; Outlook table-based layout + Outlook-only duplicated buttons). **Prerequisite:** a configured public base URL (`SiteOptions.PublicBaseUrl`, validated at start) — background-generated mail has no request context to build site links from. _(needs S5, G0.6)_
+- [ ] 🗂 **C4 — Polling hardening** (ETag/Last-Modified + 304; **resolve images** — use the RSS-provided image, else scrape `og:image` from the article target; dispatch to email/Slack per user choice; retry a digest that failed to send). _Already done by S4/S5/P1.R:_ active feeds only, the email→articles dictionary, per-feed isolation, the first-poll/catch-up cap, bounded parsing. **Prerequisites / first commits:** (1) an **outbound URL filter** before any server-side fetch of a publisher-controlled URL — `og:image` scraping is an SSRF surface: reject loopback/private/link-local targets and re-check on every redirect hop; (2) extract a `FeedPoller` (fetch → parse → de-dup → insert → stamp, returning the previous `LastPolledAt` as data) from `FeedPollingService`, keeping the orchestrator for selection/isolation/cap/recipients and channel fan-out in the loop's `DispatchAsync`; `og:image` enrichment runs as a separate bounded step after the feed's save; (3) bounded concurrency across feeds (`Parallel.ForEachAsync`, a `MaxConcurrentFeeds` option, a thread-safe test fetcher) — sequential polling of 115 feeds already exceeds the minute; (4) drop `Cache=Shared` from the SQLite connection string and enable WAL journal mode for a background writer plus interactive readers. Consider notifying only about articles published after `Subscription.CreatedAt` once the value is per-subscription. _(needs S4, C2, C3)_
+- [ ] 🗂 **C5 — Unsubscribe** (RFC 8058 HMAC-signed one-click; unsubscribe page, single button; per-channel or both; Unsubscribe link + List-Unsubscribe headers). Needs `SiteOptions.PublicBaseUrl` (C3) and the subscription id in the digest value (C2). _(needs C3)_
 
 **Cross-track dependencies:** `B1` needs `A2` · `A3` needs subscriptions (`C1`) · `C5` needs `C3` · `C4` needs `C2`+`C3`.
 
@@ -102,7 +102,10 @@ dependencies are called out.
 - **Popularity** — a **fixed** figure per feed (not computed), stored on `Feed`, set from the G0.R research. Default ordering sorts by it.
 - **Categories** — derived from the G0.R feed research, **not** the spec's illustrative examples.
 - **Images** — use the **RSS-provided image** if present; otherwise the **`og:image`** scraped from the article target. **No admin upload.** Store the image URL (not a blob).
-- **Article identity/de-dup** — resolved at the schema level in G0.3: `Article.ExternalId` (RSS `<guid>` else link) with a unique `(FeedId, ExternalId)` index. Polling (C4) upserts against it.
+- **Article identity/de-dup** — resolved at the schema level in G0.3: `Article.ExternalId` (RSS `<guid>` else link) with a unique `(FeedId, ExternalId)` index. Polling inserts only unseen ids against it (S4).
+- **UTC everywhere** — every persisted `DateTimeOffset` is UTC (the parser normalises dates, the poller stamps `TimeProvider.GetUtcNow()`); SQLite stores and compares them as text, so mixed offsets would order wrongly. _(P1.R)_
+- **Column limits on the entities** — `public const int *MaxLength` members are the single source for EF configuration, validators and forms; `LimitsTests` guards constant ↔ column. _(P1.R)_
+- **Poll result shape** — keyed by subscriber email (spec); the value is a list of `NewArticle` values, never entities, and grows into a per-subscription digest in C2/C4. _(P1.R)_
 
 ## Open decisions (resolve during detailed planning)
 
@@ -116,6 +119,7 @@ dependencies are called out.
 - Multiple Slack channels (single webhook for v1). _(spec)_
 - Categories as free-text (superseded by the category entity). _(spec)_
 - **Admin image upload** — not supported at the moment. _(this session)_
+- **Article retention / cleanup** — the `Articles` table grows without bound (every item of every active feed, forever). A retention job (or a per-feed cap) is needed before the product runs for long; not scheduled in Phase 2. _(P1.R)_
 
 ## Next steps
 

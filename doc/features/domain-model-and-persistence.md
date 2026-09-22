@@ -27,6 +27,12 @@ constant equals the mapped column.
 `ApplicationUser` (`Data/`) extends `IdentityUser` with a `bool IsAdmin` flag and a `Subscriptions` nav. It keeps
 Identity's string key, so it is the one persisted entity not on a GUID v7 id.
 
+**Every persisted `DateTimeOffset` is UTC.** `Article.PublishedAt` is normalised by the parser, `Feed.LastPolledAt` is
+stamped from `TimeProvider.GetUtcNow()`, and the audit fields (`Article.FetchedAt`, `Subscription.CreatedAt`) use
+`DateTimeOffset.UtcNow` (initialised on construction, so an injected clock would not reach them). This matters
+because SQLite stores `DateTimeOffset` as `TEXT` and EF compares and orders it as text: uniform offsets are what make
+`ORDER BY PublishedAt` (the feed page, B4) and the catch-up window comparison correct.
+
 ## Persistence (`LuminaFeed/Data/`)
 
 - **`ApplicationDbContext`** — `IdentityDbContext<ApplicationUser>` with `DbSet`s for the four entities;
