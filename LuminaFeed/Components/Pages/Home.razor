@@ -29,26 +29,13 @@ else
 {
     @foreach (var category in Categories)
     {
-        <section class="mb-5" @key="category.CategoryId">
-            <h2 class="h4 border-bottom pb-2 mb-3">@category.CategoryName</h2>
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3">
-                @foreach (var feed in category.Feeds)
-                {
-                    <div class="col" @key="feed.Id">
-                        <FeedCard Feed="feed">
-                            <Actions>
-                                <SubscribeButton FeedName="@feed.Name"
-                                                 IsAuthenticated="@(userId is not null)"
-                                                 IsSubscribed="@SubscribedFeedIds.Contains(feed.Id)"
-                                                 Busy="@(busyFeedId == feed.Id)"
-                                                 LoginUrl="@loginUrl"
-                                                 OnToggle="@(() => ToggleSubscriptionAsync(feed.Id))"/>
-                            </Actions>
-                        </FeedCard>
-                    </div>
-                }
-            </div>
-        </section>
+        <CategorySection Category="category"
+                         IsAuthenticated="@(userId is not null)"
+                         LoginUrl="@loginUrl"
+                         SubscribedFeedIds="SubscribedFeedIds"
+                         BusyFeedId="busyFeedId"
+                         OnToggleSubscription="ToggleSubscriptionAsync"
+                         @key="category.CategoryId"/>
     }
 }
 

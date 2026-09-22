@@ -1,0 +1,52 @@
+@using LuminaFeed.Services.Feeds
+
+@* One category on the public list: a header and up to `visibleCount` of its feed cards, with a "more" button
+   that reveals five more each click. The whole catalogue is already in the circuit's memory (see Home.razor), so
+   the cap and the "more" step are pure client-side slicing — no re-query. *@
+<section class="mb-5">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap border-bottom pb-2 mb-3">
+        <h2 class="h4 mb-0">@Category.CategoryName</h2>
+    </div>
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
+        @foreach (var feed in Category.Feeds.Take(visibleCount))
+        {
+            <div class="col" @key="feed.Id">
+                <FeedCard Feed="feed">
+                    <Actions>
+                        <SubscribeButton FeedName="@feed.Name"
+                                         IsAuthenticated="IsAuthenticated"
+                                         IsSubscribed="@SubscribedFeedIds.Contains(feed.Id)"
+                                         Busy="@(BusyFeedId == feed.Id)"
+                                         LoginUrl="@LoginUrl"
+                                         OnToggle="@(() => OnToggleSubscription.InvokeAsync(feed.Id))"/>
+                    </Actions>
+                </FeedCard>
+            </div>
+        }
+    </div>
+
+    @if (visibleCount < Category.Feeds.Count)
+    {
+        <div class="mt-3">
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    aria-label="@($"Show more {Category.CategoryName} feeds")" @onclick="ShowMore">
+                More
+            </button>
+        </div>
+    }
+</section>
+
+@code {
+    private const int PageSize = 5;
+    private int visibleCount = PageSize;
+
+    [Parameter, EditorRequired] public CategoryFeeds Category { get; set; } = default!;
+    [Parameter] public bool IsAuthenticated { get; set; }
+    [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
+    [Parameter] public IReadOnlySet<Guid> SubscribedFeedIds { get; set; } = new HashSet<Guid>();
+    [Parameter] public Guid? BusyFeedId { get; set; }
+    [Parameter] public EventCallback<Guid> OnToggleSubscription { get; set; }
+
+    private void ShowMore() => visibleCount += PageSize;
+}

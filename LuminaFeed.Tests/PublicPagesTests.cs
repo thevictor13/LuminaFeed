@@ -16,6 +16,14 @@ public sealed class PublicPagesTests
     // Expected counts come from the embedded catalogue, so adding a feed to the research JSON doesn't break these.
     private static readonly int SeededFeeds = SeedCatalogLoader.LoadEmbedded().Feeds.Count;
 
+    // B1: the home page shows at most five cards per category (a "more" button reveals the rest). The prerendered
+    // HTML therefore carries the capped total, and one "more" button per category that has more than five feeds.
+    private const int CardsPerCategory = 5;
+    private static readonly int VisibleCards = SeedCatalogLoader.LoadEmbedded().Feeds
+        .GroupBy(f => f.Category).Sum(g => Math.Min(CardsPerCategory, g.Count()));
+    private static readonly int CategoriesWithMore = SeedCatalogLoader.LoadEmbedded().Feeds
+        .GroupBy(f => f.Category).Count(g => g.Count() > CardsPerCategory);
+
     [Fact]
     public async Task Home_Anonymous_ShowsSeededFeedsAsCardsGroupedByCategory()
     {
@@ -28,8 +36,12 @@ public sealed class PublicPagesTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("World News", html);
         Assert.Contains("BBC News", html);
-        // Every seeded feed gets a card.
-        Assert.Equal(SeededFeeds, CountOf(html, "class=\"card h-100 feed-card\""));
+        // At most five cards per category are rendered up front; a "more" button reveals the rest per category.
+        Assert.Equal(VisibleCards, CountOf(html, "class=\"card h-100 feed-card\""));
+        Assert.Equal(CategoriesWithMore, CountOf(html, "aria-label=\"Show more "));
+        // Capping genuinely holds back cards: fewer are shown than the catalogue has, and "more" is offered.
+        Assert.True(CategoriesWithMore > 0, "The seeded catalogue should have at least one category with more than five feeds.");
+        Assert.True(VisibleCards < SeededFeeds, "Capping should render fewer cards than the full catalogue.");
     }
 
     [Fact]
@@ -41,9 +53,10 @@ public sealed class PublicPagesTests
         {
             var feeds = scope.ServiceProvider.GetRequiredService<IFeedService>();
             var category = (await feeds.ListByCategoryAsync())[0];
+            // Top popularity so it sorts first in its category and lands within the five cards shown up front (B1).
             var created = await feeds.CreateAsync(new CreateFeedRequest(
                 "Skeleton Gazette", category.CategoryId, "https://gazette.example.test/rss.xml",
-                "https://gazette.example.test", ImageUrl: "https://gazette.example.test/logo.png"));
+                "https://gazette.example.test", ImageUrl: "https://gazette.example.test/logo.png", Popularity: int.MaxValue));
             Assert.False(created.IsError);
         }
 
@@ -62,9 +75,9 @@ public sealed class PublicPagesTests
 
         var html = await client.GetStringAsync("/");
 
-        // Anonymous users are treated as having no subscriptions: every card offers Subscribe, as a
+        // Anonymous users are treated as having no subscriptions: every visible card offers Subscribe, as a
         // link to the login page carrying the location to return to, and no card shows the red Unsubscribe.
-        Assert.Equal(SeededFeeds, CountOf(html, ">Subscribe</a>"));
+        Assert.Equal(VisibleCards, CountOf(html, ">Subscribe</a>"));
         Assert.Contains("href=\"Account/Login?ReturnUrl=%2F\"", html);
         Assert.Equal(0, CountOf(html, "btn-danger"));
     }
@@ -89,7 +102,9 @@ public sealed class PublicPagesTests
 
         Assert.Equal(1, CountOf(html, "btn-danger"));
         Assert.Equal(1, CountOf(html, ">Unsubscribe</button>"));
-        Assert.Equal(SeededFeeds - 1, CountOf(html, ">Subscribe</button>"));
+        // The one subscribed feed is the top of the first category, so it is visible; the rest of the visible cards
+        // still offer Subscribe.
+        Assert.Equal(VisibleCards - 1, CountOf(html, ">Subscribe</button>"));
         Assert.DoesNotContain("Account/Login?ReturnUrl", html);
         // Home persists the user's subscribed ids for the interactive circuit — and nothing bulky (see below).
         Assert.Contains("Blazor-Server-Component-State", html);
