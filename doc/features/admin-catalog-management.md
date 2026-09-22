@@ -90,6 +90,16 @@ The duplicate checks run before the insert; if a concurrent create still trips t
 delete guards the `Feed → Category` `Restrict` FK the same way: if a feed is assigned between the up-front count and
 the save, the `DbUpdateException` is re-checked and reported as `Category.HasFeeds`.
 
+### Accepted trade-offs
+
+- **No optimistic concurrency on edits.** Category and feed edits are last-write-wins: if two admins edit the same
+  row at once, the later save silently overwrites the earlier one (there is no `RowVersion`). Acceptable for a
+  low-contention, admin-only catalogue; revisit if concurrent admin editing becomes common.
+- **Editing a feed's URL keeps its stored articles.** `UpdateAsync` clears the cached `ETag` / `LastModified` so the
+  new endpoint is polled cleanly, but leaves the feed's existing `Article` rows in place — de-duplication is per
+  `(FeedId, ExternalId)`, so repointing a feed at a genuinely different source leaves the old articles until the feed
+  is deleted. Repointing to an unrelated feed isn't an expected admin action; deleting and re-adding is the clean path.
+
 ## Persistence access: `IDbContextFactory`
 
 `Program.cs` registers `AddDbContextFactory<ApplicationDbContext>` (instead of `AddDbContext`). Interactive Server

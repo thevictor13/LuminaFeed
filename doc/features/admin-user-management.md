@@ -24,7 +24,9 @@ markup, static backdrop, no JS interop — so it stays inside the SignalR circui
 - **Remove subscription** — confirms removing that one feed from that one user.
 - **Delete user** — warns that it permanently deletes the account **and** removes its N subscription(s) (the count is
   read fresh when the dialog opens, via `GetSubscriptionCountAsync`, falling back to the list snapshot if that read
-  fails), then proceeds. Deleting a user cascades their subscriptions at the database.
+  fails), then proceeds. Deleting a user cascades their subscriptions at the database. The count is **advisory**: it
+  can differ from what is ultimately removed if the user changes their subscriptions between the read and confirming —
+  the delete still cascades whatever exists at that moment.
 
 ### Self-guard
 
