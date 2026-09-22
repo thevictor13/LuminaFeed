@@ -141,14 +141,17 @@ def classify_user_record(text, prompt_source):
     if stripped.startswith("<command-name>") or "<command-message>" in text[:200]:
         return "command"
 
-    if prompt_source in HUMAN_PROMPT_SOURCES:
-        return "user"
+    # A null promptSource marks harness-injected content — interrupt markers,
+    # tool/MCP instruction blocks, command output — never a message the user
+    # typed. (Every genuinely user-authored prompt carries a non-null source:
+    # "typed", "queued", "suggestion_accepted", …) So anything left with a null
+    # source is dropped, which is what stops injected instruction dumps like the
+    # "Claude in Chrome" block from being shown as a user prompt.
+    if prompt_source is None:
+        return "skip"
 
-    # Unknown/absent source: trust plain prose, but drop anything still wrapped
-    # in a machine tag we don't explicitly recognise.
-    if not stripped.startswith("<"):
-        return "user"
-    return "skip"
+    # Any explicit, non-"system" source is a message the user actually sent.
+    return "user"
 
 
 def clean_command_text(text):
@@ -158,6 +161,94 @@ def clean_command_text(text):
     label = name.group(1).strip() if name else text.strip()
     extra = args.group(1).strip() if args else ""
     return (label + (" " + extra if extra else "")).strip()
+
+
+# AskUserQuestion answers arrive as a tool_result string of the form:
+#   Your questions have been answered: "Q1"="A1" selected preview: … "Q2"="A2" …
+_AQ_PAIR = re.compile(r'"([^"]+)"\s*=\s*"([^"]+)"')
+
+
+def parse_question_answers(result_text):
+    """Pull [(question, answer)] pairs out of an AskUserQuestion tool result."""
+    return [
+        {"q": q.strip(), "a": a.strip()}
+        for q, a in _AQ_PAIR.findall(result_text or "")
+    ]
+
+
+def result_text_of(block):
+    """Flatten a tool_result block's content (str or list of blocks) to text."""
+    rc = block.get("content")
+    if isinstance(rc, list):
+        rc = " ".join(
+            x.get("text", "")
+            for x in rc
+            if isinstance(x, dict) and x.get("type") == "text"
+        )
+    return rc if isinstance(rc, str) else ""
+
+
+def askquestion_answer_event(message, pending_ids, ts):
+    """If this user record answers an AskUserQuestion, build a user event for it.
+
+    The user's picks in an AskUserQuestion dialog are real input, but the log
+    stores them as a tool_result rather than a typed message — so they would
+    otherwise be discarded with every other tool result.
+    """
+    content = message.get("content")
+    if not isinstance(content, list):
+        return None
+    for b in content:
+        if not isinstance(b, dict) or b.get("type") != "tool_result":
+            continue
+        rc = result_text_of(b)
+        is_aq = b.get("tool_use_id") in pending_ids or rc.startswith(
+            "Your questions have been answered"
+        )
+        if not is_aq:
+            continue
+        pending_ids.discard(b.get("tool_use_id"))
+        qa = parse_question_answers(rc)
+        if not qa:
+            # No question=answer pairs — a dismissed dialog or a tool error, not
+            # user input. Let it fall through to be skipped like any tool result.
+            return None
+        text = "\n".join(f"{p['q']} → {p['a']}" for p in qa)
+        return {"kind": "prompt", "cls": "answer", "ts": ts, "qa": qa, "text": text}
+    return None
+
+
+# When the user rejects a tool/plan (e.g. ExitPlanMode) and types instructions
+# instead, the log wraps their message in an is_error tool_result like:
+#   The user doesn't want to proceed with this tool use. … the user said:
+#   <the actual message>
+#   \n\nNote: The user's next message …
+_REJECT_PREAMBLE = "The user doesn't want to proceed with this tool use"
+_USER_SAID = re.compile(r"the user said:\s*(.*)", re.S | re.I)
+
+
+def rejection_feedback_event(message, ts):
+    """Recover a real user message typed when rejecting a tool use / plan."""
+    content = message.get("content")
+    if not isinstance(content, list):
+        return None
+    for b in content:
+        if not isinstance(b, dict) or b.get("type") != "tool_result":
+            continue
+        rc = result_text_of(b)
+        # Anchor on the rejection preamble so we don't match tool output that
+        # merely quotes the phrase "the user said:".
+        if not rc.lstrip().startswith(_REJECT_PREAMBLE):
+            continue
+        m = _USER_SAID.search(rc)
+        if not m:
+            continue
+        fb = re.split(r"\n\nNote: The user's next message", m.group(1).strip())[0].strip()
+        # "let me clarify" injects boilerplate rather than a typed message.
+        if not fb or fb.startswith("The user wants to clarify these questions"):
+            continue
+        return {"kind": "prompt", "cls": "user", "ts": ts, "text": fb}
+    return None
 
 
 def tool_detail(name, tool_input):
@@ -199,6 +290,7 @@ def load_session(path):
     # Turn-based event assembly.
     events = []
     current_response = None  # accumulating assistant reply
+    pending_aq = set()  # ids of AskUserQuestion tool_use blocks awaiting answers
 
     def flush_response():
         nonlocal current_response
@@ -256,6 +348,23 @@ def load_session(path):
             message = rec.get("message") or {}
 
             if rtype == "user":
+                reject_event = rejection_feedback_event(message, rec.get("timestamp"))
+                if reject_event is not None:
+                    # A message the user typed while rejecting a tool use / plan.
+                    flush_response()
+                    n_prompts += 1
+                    events.append(reject_event)
+                    continue
+                answer_event = askquestion_answer_event(
+                    message, pending_aq, rec.get("timestamp")
+                )
+                if answer_event is not None:
+                    # The user's choices in an AskUserQuestion dialog — real
+                    # input, so treat it like a prompt turn.
+                    flush_response()
+                    n_prompts += 1
+                    events.append(answer_event)
+                    continue
                 if is_tool_result_user(message):
                     # A tool result closing an assistant step; keep it attached
                     # to the in-flight response rather than starting a turn.
@@ -316,6 +425,11 @@ def load_session(path):
                                 current_response["thinking"] += "\n\n"
                             current_response["thinking"] += t
                     elif bt == "tool_use":
+                        if b.get("name") == "AskUserQuestion":
+                            # Surfaced as a user "answer" event when the reply
+                            # arrives, not as a tool chip.
+                            pending_aq.add(b.get("id"))
+                            continue
                         n_tools += 1
                         current_response["tools"].append(
                             {
@@ -501,6 +615,12 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     text-transform:uppercase;letter-spacing:.04em;}
   .prompt.command{--prompt-bd:var(--cmd);}
   .prompt.meta{--prompt-bd:var(--meta);opacity:.75;}
+  .prompt.answer{--prompt-bd:#12a594;--prompt-bg:rgba(18,165,148,.10);}
+  .prompt.answer .who{color:#0e8577;}
+  .qa{margin:6px 0;}
+  .qa .q{font-size:12.5px;color:var(--muted);}
+  .qa .a{font-size:14px;font-weight:600;}
+  .qa .a::before{content:"→ ";color:#12a594;font-weight:400;}
   .txt{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}
   .prompt .txt{font-size:14px;}
 
@@ -662,10 +782,15 @@ function renderSession(s, w){
   let ev = '';
   s.events.forEach(e=>{
     if(e.kind==='prompt'){
-      const who = e.cls==='command' ? 'Command' : 'User';
+      const who = e.cls==='command' ? 'Command' : (e.cls==='answer' ? 'User · answered a prompt' : 'User');
+      let body;
+      if(e.cls==='answer' && e.qa && e.qa.length){
+        body = e.qa.map(p=>`<div class="qa"><div class="q">${esc(p.q)}</div><div class="a">${esc(p.a)}</div></div>`).join('');
+      } else {
+        body = `<div class="txt">${esc(e.text)}</div>`;
+      }
       ev += `<div class="ev"><div class="ts">${e.ts?fmtT(new Date(e.ts).getTime()):''}</div>
-        <div class="prompt ${e.cls}"><div class="who">${who}</div>
-        <div class="txt">${esc(e.text)}</div></div></div>`;
+        <div class="prompt ${e.cls}"><div class="who">${who}</div>${body}</div></div>`;
     } else {
       const preview = (e.text||'').replace(/\s+/g,' ').slice(0,160) || (e.tools.length? e.tools.length+' tool call'+(e.tools.length>1?'s':'') : 'thinking');
       const chips = e.tools.map(t=>`<span class="chip" title="${esc(t.detail)}"><b>${esc(t.name)}</b>${t.detail?' '+esc(t.detail):''}</span>`).join('');
