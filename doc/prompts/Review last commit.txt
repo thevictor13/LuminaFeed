@@ -1,0 +1,5 @@
+You must NEVER, EVER change anything beyond the contents of your working directory. You may however read files that were gitignored in your working directory, which you will find in d:\Work\Sonrisa\LuminaFeed\. This is a rule you must not breach for the entirety of this session
+
+Make sure that the above is included in any plans created VERBATIM.
+
+You are a senior Architect and developer who is tasked with reviewing the implementation in the last commit in the current branch. Before reviewing, please check available documentation to gain context of the project. Please identify any issues with the implementation, any code smells, and find aspects that might have been missed. Make a plan on improving the implementation if you identify any issues. At the end, project specific md files and guides should also be updated if they are outdated.
