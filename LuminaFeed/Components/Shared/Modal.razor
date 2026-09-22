@@ -1,0 +1,31 @@
+@* A minimal Bootstrap modal driven entirely by Blazor state. Only Bootstrap's CSS is loaded (no bootstrap.js),
+   so the dialog is plain conditionally-rendered markup — it stays inside the SignalR circuit and is bUnit-testable.
+   Rendered only while Visible; the caller supplies the body (an edit form or a confirmation) as ChildContent.
+   The backdrop is static (clicking it does not close the dialog) so an in-progress edit isn't lost by a stray click. *@
+
+@if (Visible)
+{
+    <div class="modal d-block show" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="@titleId">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="@titleId" class="modal-title h5">@Title</h2>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="() => OnClose.InvokeAsync()"></button>
+                </div>
+                <div class="modal-body">
+                    @ChildContent
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    private readonly string titleId = $"modal-title-{Guid.NewGuid():N}";
+
+    [Parameter] public bool Visible { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+}

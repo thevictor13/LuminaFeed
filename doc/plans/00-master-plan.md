@@ -76,8 +76,14 @@ After the skeleton, three tracks run largely in parallel. Ordering is intra-trac
 dependencies are called out.
 
 ### Track A — Admin
-- [ ] 🗂 **A1 — Category CRUD** (edit/delete + validation). _(needs S1)_
-- [ ] 🗂 **A2 — Feed CRUD** (edit/delete, image, category dropdown). _(needs S1)_
+- [x] 🗂 **A1 — Category CRUD** (edit/delete + validation). _(needs S1)_ ✅ **Done** — `CategoryService` gains
+  `UpdateAsync` / `DeleteAsync` (duplicate-name check ignores the edited row; delete refuses with `Category.HasFeeds`
+  while feeds remain — `Feed → Category` is `Restrict`); `/admin/categories` edits and deletes in a reusable,
+  CSS-only Bootstrap modal (`Components/Shared/Modal.razor`, no JS interop). Plan (with A2):
+  [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md); feature:
+  [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
+- [ ] 🗂 **A2 — Feed CRUD** (edit/delete, image, category dropdown). _(needs S1)_ — plan:
+  [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md).
 - [ ] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_ **Security-stamp guard (from G0.9):** the admin claim is baked into the auth cookie by `AdminClaimsPrincipalFactory`, so when A3 toggles a user's `IsAdmin`, it must call `UserManager.UpdateSecurityStampAsync` so `IdentityRevalidatingAuthenticationStateProvider` regenerates the principal — otherwise the change won't take effect until the user's next sign-in.
 
 ### Track B — Public UX

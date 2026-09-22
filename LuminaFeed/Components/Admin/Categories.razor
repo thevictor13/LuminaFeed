@@ -16,9 +16,9 @@
 <h2 class="h4">Add a category</h2>
 
 <ErrorList Messages="errors"/>
-@if (createdName is not null)
+@if (notice is not null)
 {
-    <div class="alert alert-success" role="status">Category "@createdName" was added.</div>
+    <div class="alert alert-success" role="status">@notice</div>
 }
 
 <EditForm Model="form" OnSubmit="CreateAsync" class="mb-4">
@@ -45,12 +45,13 @@ else if (categories.Count == 0)
 }
 else
 {
-    <table class="table table-sm">
+    <table class="table table-sm align-middle">
         <thead>
         <tr>
             <th scope="col">Name</th>
             <th scope="col">Description</th>
             <th scope="col" class="text-end">Feeds</th>
+            <th scope="col" class="text-end">Actions</th>
         </tr>
         </thead>
         <tbody>
@@ -60,18 +61,63 @@ else
                 <td>@category.Name</td>
                 <td>@category.Description</td>
                 <td class="text-end">@category.FeedCount</td>
+                <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            @onclick="() => BeginEdit(category)" aria-label="@($"Edit {category.Name}")">Edit</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            @onclick="() => BeginDelete(category)" disabled="@(category.FeedCount > 0)"
+                            title="@(category.FeedCount > 0 ? "Remove its feeds before deleting this category." : null)"
+                            aria-label="@($"Delete {category.Name}")">Delete</button>
+                </td>
             </tr>
         }
         </tbody>
     </table>
 }
 
+<Modal Visible="editing" Title="Edit category" OnClose="CancelEdit">
+    <ErrorList Messages="editErrors"/>
+    <EditForm Model="edit" OnSubmit="SaveEditAsync">
+        <div class="mb-3">
+            <label for="edit-category-name" class="form-label">Name</label>
+            <InputText id="edit-category-name" @bind-Value="edit.Name" class="form-control" maxlength="@Category.NameMaxLength"/>
+        </div>
+        <div class="mb-3">
+            <label for="edit-category-description" class="form-label">Description <span class="text-secondary">(optional)</span></label>
+            <InputTextArea id="edit-category-description" @bind-Value="edit.Description" class="form-control" rows="2"/>
+        </div>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" @onclick="CancelEdit" disabled="@editBusy">Cancel</button>
+            <button type="submit" class="btn btn-primary" disabled="@editBusy">Save changes</button>
+        </div>
+    </EditForm>
+</Modal>
+
+<Modal Visible="deleting is not null" Title="Delete category" OnClose="CancelDelete">
+    <ErrorList Messages="deleteErrors"/>
+    @if (deleting is not null)
+    {
+        <p>Delete the category <strong>@deleting.Name</strong>? This can't be undone.</p>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" @onclick="CancelDelete" disabled="@deleteBusy">Cancel</button>
+            <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@deleteBusy">Delete category</button>
+        </div>
+    }
+</Modal>
+
 @code {
     private readonly FormModel form = new();
+    private readonly EditModel edit = new();
     private IReadOnlyList<CategorySummary>? categories;
     private IReadOnlyList<string> errors = [];
-    private string? createdName;
+    private IReadOnlyList<string> editErrors = [];
+    private IReadOnlyList<string> deleteErrors = [];
+    private string? notice;
+    private CategorySummary? deleting;
+    private bool editing;
     private bool busy;
+    private bool editBusy;
+    private bool deleteBusy;
 
     protected override async Task OnInitializedAsync() => categories = await CategoryService.ListAsync();
 
@@ -83,7 +129,7 @@ else
         busy = true;
         try
         {
-            createdName = null;
+            notice = null;
             var result = await CategoryService.CreateAsync(new CreateCategoryRequest(form.Name, form.Description));
             if (result.IsError)
             {
@@ -92,7 +138,7 @@ else
             }
 
             errors = [];
-            createdName = result.Value.Name;
+            notice = $"Category \"{result.Value.Name}\" was added.";
             form.Name = string.Empty;
             form.Description = null;
             categories = await CategoryService.ListAsync();
@@ -103,8 +149,97 @@ else
         }
     }
 
+    private void BeginEdit(CategorySummary category)
+    {
+        edit.Id = category.Id;
+        edit.Name = category.Name;
+        edit.Description = category.Description;
+        editErrors = [];
+        editing = true;
+    }
+
+    private void CancelEdit()
+    {
+        editing = false;
+        editErrors = [];
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editBusy)
+            return;
+
+        editBusy = true;
+        try
+        {
+            var result = await CategoryService.UpdateAsync(new UpdateCategoryRequest(edit.Id, edit.Name, edit.Description));
+            if (result.IsError)
+            {
+                editErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            editing = false;
+            editErrors = [];
+            errors = [];
+            notice = $"Category \"{result.Value.Name}\" was updated.";
+            categories = await CategoryService.ListAsync();
+        }
+        finally
+        {
+            editBusy = false;
+        }
+    }
+
+    private void BeginDelete(CategorySummary category)
+    {
+        deleting = category;
+        deleteErrors = [];
+    }
+
+    private void CancelDelete()
+    {
+        deleting = null;
+        deleteErrors = [];
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deleting is null || deleteBusy)
+            return;
+
+        deleteBusy = true;
+        try
+        {
+            var target = deleting;
+            var result = await CategoryService.DeleteAsync(target.Id);
+            if (result.IsError)
+            {
+                deleteErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            deleting = null;
+            deleteErrors = [];
+            errors = [];
+            notice = $"Category \"{target.Name}\" was deleted.";
+            categories = await CategoryService.ListAsync();
+        }
+        finally
+        {
+            deleteBusy = false;
+        }
+    }
+
     private sealed class FormModel
     {
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+    }
+
+    private sealed class EditModel
+    {
+        public Guid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
     }

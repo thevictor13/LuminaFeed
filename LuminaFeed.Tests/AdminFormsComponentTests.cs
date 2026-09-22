@@ -4,6 +4,7 @@ using LuminaFeed.Domain;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Feeds;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LuminaFeed.Tests;
@@ -19,7 +20,8 @@ public sealed class AdminFormsComponentTests : BunitContext
 
     public AdminFormsComponentTests()
     {
-        Services.AddSingleton<ICategoryService>(new CategoryService(_db, new CreateCategoryRequestValidator()));
+        Services.AddSingleton<ICategoryService>(
+            new CategoryService(_db, new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator()));
         Services.AddSingleton<IFeedService>(new FeedService(_db, new CreateFeedRequestValidator()));
     }
 
@@ -84,6 +86,72 @@ public sealed class AdminFormsComponentTests : BunitContext
         cut.WaitForAssertion(() => Assert.Contains("'Name' must not be empty.", cut.Find(".alert-danger").TextContent));
         using var ctx = _db.CreateDbContext();
         Assert.Empty(ctx.Categories);
+    }
+
+    [Fact]
+    public async Task Categories_EditingOne_UpdatesTheRow_AndClosesTheDialog()
+    {
+        _db.AddCategory("Scince");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Scince']").ClickAsync(new MouseEventArgs());
+
+        var name = cut.WaitForElement("#edit-category-name");
+        Assert.Equal("Scince", name.GetAttribute("value"));
+        name.Change("Science");
+        await cut.Find(".modal form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Category \"Science\" was updated.", cut.Find(".alert-success").TextContent));
+        Assert.Empty(cut.FindAll(".modal"));
+        Assert.Contains("Science", cut.Find("tbody tr").TextContent);
+        using var ctx = _db.CreateDbContext();
+        Assert.Equal("Science", Assert.Single(ctx.Categories).Name);
+    }
+
+    [Fact]
+    public async Task Categories_EditingOntoAnExistingName_ShowsTheConflictInTheDialog()
+    {
+        _db.AddCategory("World News");
+        _db.AddCategory("Markets");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Markets']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#edit-category-name").Change("World News");
+        await cut.Find(".modal form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("already exists", cut.Find(".modal .alert-danger").TextContent));
+        Assert.NotEmpty(cut.FindAll(".modal"));
+        Assert.Empty(cut.FindAll(".alert-success"));
+    }
+
+    [Fact]
+    public async Task Categories_DeletingAnEmptyCategory_RemovesTheRow()
+    {
+        _db.AddCategory("Science");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Delete Science']").ClickAsync(new MouseEventArgs());
+        await cut.Find(".modal .btn-danger").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Contains("Category \"Science\" was deleted.", cut.Find(".alert-success").TextContent));
+        Assert.Empty(cut.FindAll(".modal"));
+        Assert.Contains("No categories yet.", cut.Markup);
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Categories);
+    }
+
+    [Fact]
+    public void Categories_DeleteButton_IsDisabledForACategoryWithFeeds()
+    {
+        var science = _db.AddCategory("Science");
+        _db.AddFeed(science.Id, "Nature");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        Assert.True(cut.Find("button[aria-label='Delete Science']").HasAttribute("disabled"));
     }
 
     [Fact]
