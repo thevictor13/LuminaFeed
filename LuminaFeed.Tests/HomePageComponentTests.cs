@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using Bunit;
-using ErrorOr;
 using LuminaFeed.Components.Pages;
 using LuminaFeed.Data;
 using LuminaFeed.Domain;
@@ -14,10 +13,12 @@ using Feed = LuminaFeed.Domain.Feed;
 namespace LuminaFeed.Tests;
 
 /// <summary>
-/// The interactive subscribe path of the public list, rendered with bUnit over the <b>real services</b> on in-memory
-/// SQLite: what the page tests (prerendered HTML only) cannot reach — the click, the busy gate, the optimistic
-/// update and the error alert. The persisted-state properties have no supplier here, so the page takes its
-/// service-loading path, which is the one under test.
+/// The public list rendered with bUnit over the <b>real services</b> on in-memory SQLite: the wiring the page tests
+/// (prerendered HTML only) cannot reach — the anonymous login link, the B3 category filter, and that a card button
+/// opens the channel dialog and the card reflects its result. The dialog's own behaviour (switches, webhook
+/// validation, in-flight, errors) is covered by <see cref="SubscribeDialogComponentTests"/>; the paging/order by
+/// <see cref="CategorySectionComponentTests"/>. The persisted-state properties have no supplier here, so the page
+/// takes its service-loading path.
 /// </summary>
 public sealed class HomePageComponentTests : BunitContext
 {
@@ -28,6 +29,7 @@ public sealed class HomePageComponentTests : BunitContext
     {
         Services.AddSingleton<IFeedService>(
             new FeedService(_db, new CreateFeedRequestValidator(), new UpdateFeedRequestValidator()));
+        Services.AddSingleton<ISubscriptionService>(new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
         _feed = _db.AddFeed(_db.AddCategory("World News").Id, "BBC News");
     }
 
@@ -48,9 +50,6 @@ public sealed class HomePageComponentTests : BunitContext
             _db.Dispose();
     }
 
-    private void UseSubscriptions(ISubscriptionService? service = null) =>
-        Services.AddSingleton(service ?? new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
-
     private ApplicationUser SignInAs(string email)
     {
         var user = _db.AddUser(email);
@@ -58,13 +57,12 @@ public sealed class HomePageComponentTests : BunitContext
         return user;
     }
 
-    private static string SubscribeButton => "button[aria-label='Subscribe to BBC News']";
-    private static string UnsubscribeButton => "button[aria-label='Unsubscribe from BBC News']";
+    private const string SubscribeButton = "button[aria-label='Subscribe to BBC News']";
+    private const string UnsubscribeButton = "button[aria-label='Unsubscribe from BBC News']";
 
     [Fact]
     public void Anonymous_SeesSubscribeAsALoginLink_CarryingTheReturnUrl()
     {
-        UseSubscriptions();
         AddAuthorization().SetNotAuthorized();
 
         var cut = RenderHome();
@@ -72,29 +70,37 @@ public sealed class HomePageComponentTests : BunitContext
         var link = cut.WaitForElement("a[aria-label='Subscribe to BBC News']");
         Assert.Equal("Account/Login?ReturnUrl=%2F", link.GetAttribute("href"));
         Assert.Contains("btn-primary", link.ClassList);
-        // The subscribe control is a login link (an anchor), not a button — no Subscribe/Unsubscribe buttons render.
+        // The subscribe control is a login link, not a button (the order-menu / filter triggers are other buttons).
         Assert.Empty(cut.FindAll("button[aria-label^='Subscribe'], button[aria-label^='Unsubscribe']"));
     }
 
     [Fact]
-    public async Task SignedIn_ClickingSubscribe_TurnsItIntoRedUnsubscribe_AndPersistsTheSubscription()
+    public async Task SignedIn_ClickingSubscribe_OpensTheChannelDialog()
     {
-        UseSubscriptions();
-        var alice = SignInAs("alice@example.test");
-
+        SignInAs("alice@example.test");
         var cut = RenderHome();
-        var button = cut.WaitForElement(SubscribeButton);
-        Assert.Contains("btn-primary", button.ClassList);
 
-        await button.ClickAsync(new MouseEventArgs());
+        await cut.WaitForElement(SubscribeButton).ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+            Assert.Contains("Subscribe to BBC News", cut.Find("#sub-dialog-title").TextContent));
+    }
+
+    [Fact]
+    public async Task SavingTheDialog_TurnsTheCardButtonRed_AndPersistsTheSubscription()
+    {
+        var alice = SignInAs("alice@example.test");
+        var cut = RenderHome();
+        await cut.WaitForElement(SubscribeButton).ClickAsync(new MouseEventArgs());
+
+        await cut.WaitForElement(".modal form").SubmitAsync();
 
         cut.WaitForAssertion(() =>
         {
             var toggled = cut.Find(UnsubscribeButton);
             Assert.Contains("btn-danger", toggled.ClassList);
-            Assert.False(toggled.HasAttribute("disabled"));
         });
-        Assert.Empty(cut.FindAll(".alert-danger"));
+        Assert.Empty(cut.FindAll(".modal")); // the dialog closed after saving
         using var ctx = _db.CreateDbContext();
         var row = Assert.Single(ctx.Subscriptions);
         Assert.Equal(alice.Id, row.UserId);
@@ -103,9 +109,8 @@ public sealed class HomePageComponentTests : BunitContext
     }
 
     [Fact]
-    public async Task SignedIn_ClickingUnsubscribe_RevertsTheButton_AndRemovesTheSubscription()
+    public async Task SignedIn_Unsubscribing_ThroughTheDialog_RevertsTheButton_AndRemovesTheRow()
     {
-        UseSubscriptions();
         var alice = SignInAs("alice@example.test");
         using (var ctx = _db.CreateDbContext())
         {
@@ -114,47 +119,29 @@ public sealed class HomePageComponentTests : BunitContext
         }
 
         var cut = RenderHome();
-        var button = cut.WaitForElement(UnsubscribeButton);
-
-        await button.ClickAsync(new MouseEventArgs());
+        await cut.WaitForElement(UnsubscribeButton).ClickAsync(new MouseEventArgs());   // red card button opens the dialog
+        await cut.WaitForElement(".modal-footer .btn-danger").ClickAsync(new MouseEventArgs()); // dialog's Unsubscribe
 
         cut.WaitForAssertion(() => Assert.Contains("btn-primary", cut.Find(SubscribeButton).ClassList));
+        Assert.Empty(cut.FindAll(".modal"));
         using var check = _db.CreateDbContext();
         Assert.Empty(check.Subscriptions);
     }
 
     [Fact]
-    public async Task WhileTheCallIsInFlight_TheButtonIsDisabled()
+    public async Task CancellingTheDialog_LeavesTheSubscriptionUnchanged()
     {
-        var gated = new GatedSubscriptionService(new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
-        UseSubscriptions(gated);
         SignInAs("alice@example.test");
         var cut = RenderHome();
-        var button = cut.WaitForElement(SubscribeButton);
+        await cut.WaitForElement(SubscribeButton).ClickAsync(new MouseEventArgs());
+        cut.WaitForElement(".modal");
 
-        var click = button.ClickAsync(new MouseEventArgs());
+        await cut.Find(".modal-footer .btn-outline-secondary").ClickAsync(new MouseEventArgs()); // Cancel
 
-        // The handler is parked on the gate: the button re-renders disabled and stays "Subscribe".
-        cut.WaitForAssertion(() => Assert.True(cut.Find(SubscribeButton).HasAttribute("disabled")));
-        gated.Release();
-        await click;
-        cut.WaitForAssertion(() => Assert.False(cut.Find(UnsubscribeButton).HasAttribute("disabled")));
-    }
-
-    [Fact]
-    public async Task WhenTheServiceFails_TheErrorIsShown_AndTheButtonIsUnchanged()
-    {
-        UseSubscriptions(new FailingSubscriptionService("The database is on fire."));
-        SignInAs("alice@example.test");
-        var cut = RenderHome();
-        var button = cut.WaitForElement(SubscribeButton);
-
-        await button.ClickAsync(new MouseEventArgs());
-
-        cut.WaitForAssertion(() => Assert.Contains("The database is on fire.", cut.Find(".alert-danger").TextContent));
-        var unchanged = cut.Find(SubscribeButton);
-        Assert.Contains("btn-primary", unchanged.ClassList);
-        Assert.False(unchanged.HasAttribute("disabled"));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".modal")));
+        Assert.Contains("btn-primary", cut.Find(SubscribeButton).ClassList); // still "Subscribe"
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Subscriptions);
     }
 
     // --- B3: the category filter ------------------------------------------------------------------
@@ -162,7 +149,6 @@ public sealed class HomePageComponentTests : BunitContext
     [Fact]
     public async Task SelectingACategory_ShowsOnlyThatCategory_AtTheDeeperCap()
     {
-        UseSubscriptions();
         AddAuthorization().SetNotAuthorized();
         // A second category with more than five feeds, so the filter is observable and its deeper (30) cap shows.
         var techId = _db.AddCategory("Technology").Id;
@@ -195,7 +181,6 @@ public sealed class HomePageComponentTests : BunitContext
     [Fact]
     public async Task ClearingTheFilter_RestoresAllCategories_AtTheDefaultCap()
     {
-        UseSubscriptions();
         AddAuthorization().SetNotAuthorized();
         var techId = _db.AddCategory("Technology").Id;
         for (var i = 1; i <= 6; i++)
@@ -224,52 +209,5 @@ public sealed class HomePageComponentTests : BunitContext
             // Technology is back to the default cap of five, with its More button.
             Assert.NotEmpty(cut.FindAll("button[aria-label='Show more Technology feeds']"));
         });
-    }
-
-    /// <summary>Delegates to the real service but holds every subscribe call until released.</summary>
-    private sealed class GatedSubscriptionService(ISubscriptionService inner) : ISubscriptionService
-    {
-        private readonly TaskCompletionSource _gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public void Release() => _gate.SetResult();
-
-        public Task<IReadOnlySet<Guid>> GetSubscribedFeedIdsAsync(string? userId, CancellationToken cancellationToken = default) =>
-            inner.GetSubscribedFeedIdsAsync(userId, cancellationToken);
-
-        public Task<ErrorOr<SubscriptionState>> GetSubscriptionForEditAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
-            inner.GetSubscriptionForEditAsync(userId, feedId, cancellationToken);
-
-        public async Task<ErrorOr<Success>> SaveSubscriptionAsync(string? userId, Guid feedId, SaveSubscriptionRequest request, CancellationToken cancellationToken = default)
-        {
-            await _gate.Task;
-            return await inner.SaveSubscriptionAsync(userId, feedId, request, cancellationToken);
-        }
-
-        public async Task<ErrorOr<Success>> SubscribeByEmailAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default)
-        {
-            await _gate.Task;
-            return await inner.SubscribeByEmailAsync(userId, feedId, cancellationToken);
-        }
-
-        public Task<ErrorOr<Deleted>> UnsubscribeAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
-            inner.UnsubscribeAsync(userId, feedId, cancellationToken);
-    }
-
-    private sealed class FailingSubscriptionService(string reason) : ISubscriptionService
-    {
-        public Task<IReadOnlySet<Guid>> GetSubscribedFeedIdsAsync(string? userId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
-
-        public Task<ErrorOr<SubscriptionState>> GetSubscriptionForEditAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<ErrorOr<SubscriptionState>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
-
-        public Task<ErrorOr<Success>> SaveSubscriptionAsync(string? userId, Guid feedId, SaveSubscriptionRequest request, CancellationToken cancellationToken = default) =>
-            Task.FromResult<ErrorOr<Success>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
-
-        public Task<ErrorOr<Success>> SubscribeByEmailAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<ErrorOr<Success>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
-
-        public Task<ErrorOr<Deleted>> UnsubscribeAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
-            Task.FromResult<ErrorOr<Deleted>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
     }
 }

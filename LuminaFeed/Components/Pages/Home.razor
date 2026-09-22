@@ -38,10 +38,20 @@ else
                          IsAuthenticated="@(userId is not null)"
                          LoginUrl="@loginUrl"
                          SubscribedFeedIds="SubscribedFeedIds"
-                         BusyFeedId="busyFeedId"
-                         OnToggleSubscription="ToggleSubscriptionAsync"
+                         OnOpenDialog="OpenDialog"
                          @key="category.CategoryId"/>
     }
+}
+
+@if (userId is not null && openFeed is not null)
+{
+    <SubscribeDialog FeedId="openFeed.Id"
+                     FeedName="@openFeed.Name"
+                     UserId="@userId"
+                     AccountEmail="@accountEmail"
+                     Visible="true"
+                     OnChanged="OnDialogChanged"
+                     OnClose="CloseDialog"/>
 }
 
 @code {
@@ -50,8 +60,9 @@ else
     private const int FilteredPageSize = 30;
 
     private string? userId;
+    private string? accountEmail;
     private string loginUrl = "Account/Login";
-    private Guid? busyFeedId;
+    private FeedSummary? openFeed;
     private IReadOnlyList<string> errors = [];
 
     // The selected category filter (B3). Ephemeral, like the per-section paging/order — not persisted across the
@@ -89,7 +100,12 @@ else
         if (AuthenticationState is not null)
         {
             var user = (await AuthenticationState).User;
-            userId = user.Identity?.IsAuthenticated == true ? user.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                // The (fixed) email target shown in the dialog; the username equals the address for this app.
+                accountEmail = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity.Name;
+            }
         }
 
         // Anonymous visitors are treated as having no subscriptions; "Subscribe" sends them to log in and back.
@@ -104,36 +120,24 @@ else
 
     private void OnFilterChanged(Guid? categoryId) => selectedCategoryId = categoryId;
 
-    private async Task ToggleSubscriptionAsync(Guid feedId)
+    // Both Subscribe and the red Unsubscribe (rendered by CategorySection) open the same channel dialog; it owns the
+    // service calls and its own in-flight state, and reports back which channels the user ended on.
+    private void OpenDialog(FeedSummary feed) => openFeed = feed;
+
+    private void CloseDialog() => openFeed = null;
+
+    private void OnDialogChanged(bool subscribed)
     {
-        if (userId is null || busyFeedId is not null)
+        if (openFeed is null)
             return;
 
-        busyFeedId = feedId;
-        try
-        {
-            errors = [];
-            if (SubscribedFeedIds.Contains(feedId))
-            {
-                var result = await SubscriptionService.UnsubscribeAsync(userId, feedId);
-                // Already gone (e.g. removed in another tab) is the state the user asked for.
-                if (!result.IsError || result.FirstError.Code == SubscriptionErrors.NotSubscribed.Code)
-                    SubscribedFeedIds.Remove(feedId);
-                else
-                    errors = [.. result.Errors.Select(e => e.Description)];
-            }
-            else
-            {
-                var result = await SubscriptionService.SubscribeByEmailAsync(userId, feedId);
-                if (!result.IsError)
-                    SubscribedFeedIds.Add(feedId);
-                else
-                    errors = [.. result.Errors.Select(e => e.Description)];
-            }
-        }
-        finally
-        {
-            busyFeedId = null;
-        }
+        // Replace the set rather than mutate it in place, so the CategorySection children re-render with the feed's
+        // new red/primary state (a same-reference mutation would not reliably reach them).
+        var next = new HashSet<Guid>(SubscribedFeedIds);
+        if (subscribed)
+            next.Add(openFeed.Id);
+        else
+            next.Remove(openFeed.Id);
+        SubscribedIds = next;
     }
 }

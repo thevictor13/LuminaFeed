@@ -25,7 +25,7 @@ public sealed class FeedPageComponentTests : BunitContext
     {
         Services.AddSingleton<IFeedService>(
             new FeedService(_db, new CreateFeedRequestValidator(), new UpdateFeedRequestValidator()));
-        Services.AddSingleton<ISubscriptionService>(new SubscriptionService(_db));
+        Services.AddSingleton<ISubscriptionService>(new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
         _feed = _db.AddFeed(_db.AddCategory("World News").Id, "BBC News");
     }
 
@@ -89,7 +89,7 @@ public sealed class FeedPageComponentTests : BunitContext
     }
 
     [Fact]
-    public async Task SignedIn_ClickingSubscribe_TurnsItIntoRedUnsubscribe_AndPersists()
+    public async Task SignedIn_SubscribingThroughTheDialog_TurnsItIntoRedUnsubscribe_AndPersists()
     {
         var alice = SignInAs("alice@example.test");
 
@@ -97,9 +97,12 @@ public sealed class FeedPageComponentTests : BunitContext
         var button = cut.WaitForElement(SubscribeButton);
         Assert.Contains("btn-primary", button.ClassList);
 
+        // The feed page hosts the same channel dialog as the list; Subscribe opens it, Save persists.
         await button.ClickAsync(new MouseEventArgs());
+        await cut.WaitForElement(".modal form").SubmitAsync();
 
         cut.WaitForAssertion(() => Assert.Contains("btn-danger", cut.Find(UnsubscribeButton).ClassList));
+        Assert.Empty(cut.FindAll(".modal")); // the dialog closed after saving
         using var ctx = _db.CreateDbContext();
         var row = Assert.Single(ctx.Subscriptions);
         Assert.Equal(alice.Id, row.UserId);

@@ -22,9 +22,8 @@
                         <SubscribeButton FeedName="@feed.Name"
                                          IsAuthenticated="IsAuthenticated"
                                          IsSubscribed="@SubscribedFeedIds.Contains(feed.Id)"
-                                         Busy="@(BusyFeedId == feed.Id)"
                                          LoginUrl="@LoginUrl"
-                                         OnToggle="@(() => OnToggleSubscription.InvokeAsync(feed.Id))"/>
+                                         OnOpen="@(() => OnOpenDialog.InvokeAsync(feed))"/>
                     </Actions>
                 </FeedCard>
             </div>
@@ -59,8 +58,10 @@
     [Parameter] public bool IsAuthenticated { get; set; }
     [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
     [Parameter] public IReadOnlySet<Guid> SubscribedFeedIds { get; set; } = new HashSet<Guid>();
-    [Parameter] public Guid? BusyFeedId { get; set; }
-    [Parameter] public EventCallback<Guid> OnToggleSubscription { get; set; }
+
+    /// <summary>Raised when a signed-in user clicks a card's Subscribe/Unsubscribe button — the host opens the
+    /// channel dialog for that feed (C1). Anonymous users get a login link instead and never raise this.</summary>
+    [Parameter] public EventCallback<FeedSummary> OnOpenDialog { get; set; }
 
     // Restart the visible window whenever the page size changes (e.g. the filter view raises the cap to 30, or
     // clearing it drops back to 5) — but not on the frequent re-renders from a subscribe toggle.

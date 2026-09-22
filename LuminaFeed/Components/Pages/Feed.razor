@@ -36,9 +36,8 @@ else
             <SubscribeButton FeedName="@detail.Feed.Name"
                              IsAuthenticated="@(userId is not null)"
                              IsSubscribed="@(Subscribed == true)"
-                             Busy="busy"
                              LoginUrl="@loginUrl"
-                             OnToggle="ToggleSubscriptionAsync"/>
+                             OnOpen="OpenDialog"/>
         </div>
     </div>
 
@@ -64,6 +63,17 @@ else
             }
         </div>
     }
+
+    @if (userId is not null && openDialog)
+    {
+        <SubscribeDialog FeedId="FeedId"
+                         FeedName="@detail.Feed.Name"
+                         UserId="@userId"
+                         AccountEmail="@accountEmail"
+                         Visible="true"
+                         OnChanged="OnDialogChanged"
+                         OnClose="CloseDialog"/>
+    }
 }
 
 @code {
@@ -73,8 +83,9 @@ else
     [Parameter] public Guid FeedId { get; set; }
 
     private string? userId;
+    private string? accountEmail;
     private string loginUrl = "Account/Login";
-    private bool busy;
+    private bool openDialog;
     private bool loaded;
     private Guid? loadedFeedId;
     private IReadOnlyList<string> errors = [];
@@ -94,7 +105,12 @@ else
         if (AuthenticationState is not null)
         {
             var user = (await AuthenticationState).User;
-            userId = user.Identity?.IsAuthenticated == true ? user.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                // The (fixed) email target shown in the dialog; the username equals the address for this app.
+                accountEmail = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity.Name;
+            }
         }
     }
 
@@ -123,36 +139,11 @@ else
             : Subscribed ?? (await SubscriptionService.GetSubscribedFeedIdsAsync(userId)).Contains(FeedId);
     }
 
-    private async Task ToggleSubscriptionAsync()
-    {
-        if (userId is null || busy || detail is null)
-            return;
+    // The subscribe/unsubscribe button opens the shared channel dialog (C1), which owns the service calls and its own
+    // in-flight state and reports back whether the user is still subscribed.
+    private void OpenDialog() => openDialog = true;
 
-        busy = true;
-        try
-        {
-            errors = [];
-            if (Subscribed == true)
-            {
-                var result = await SubscriptionService.UnsubscribeAsync(userId, FeedId);
-                // Already gone (e.g. removed in another tab) is the state the user asked for.
-                if (!result.IsError || result.FirstError.Code == SubscriptionErrors.NotSubscribed.Code)
-                    Subscribed = false;
-                else
-                    errors = [.. result.Errors.Select(e => e.Description)];
-            }
-            else
-            {
-                var result = await SubscriptionService.SubscribeByEmailAsync(userId, FeedId);
-                if (!result.IsError)
-                    Subscribed = true;
-                else
-                    errors = [.. result.Errors.Select(e => e.Description)];
-            }
-        }
-        finally
-        {
-            busy = false;
-        }
-    }
+    private void CloseDialog() => openDialog = false;
+
+    private void OnDialogChanged(bool subscribed) => Subscribed = subscribed;
 }

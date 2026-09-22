@@ -1,0 +1,187 @@
+@using LuminaFeed.Domain
+@using LuminaFeed.Services.Subscriptions
+@inject ISubscriptionService SubscriptionService
+
+@* The channel dialog (C1): email + Slack switches, a validated/prefilled Slack webhook, and per-channel or full
+   unsubscribe. A Bootstrap-styled modal driven purely by Blazor (no JS bundle), so it works in the circuit and in
+   bUnit alike. It inherits the host page's InteractiveServer render mode. *@
+@if (Visible)
+{
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="sub-dialog-title">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="sub-dialog-title">Subscribe to @FeedName</h2>
+                    <button type="button" class="btn-close" aria-label="Close" disabled="@busy" @onclick="CloseAsync"></button>
+                </div>
+                <EditForm Model="form" OnSubmit="SaveAsync">
+                    <div class="modal-body">
+                        <p class="text-secondary small mb-3">
+                            Choose how you want to be alerted when <strong>@FeedName</strong> publishes something new.
+                        </p>
+
+                        <div class="form-check form-switch mb-2">
+                            <InputCheckbox id="sub-email" role="switch" class="form-check-input" @bind-Value="form.EmailEnabled"/>
+                            <label class="form-check-label" for="sub-email">
+                                Email@(string.IsNullOrEmpty(AccountEmail) ? "" : $" — {AccountEmail}")
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch mb-2">
+                            <InputCheckbox id="sub-slack" role="switch" class="form-check-input" @bind-Value="form.SlackEnabled"/>
+                            <label class="form-check-label" for="sub-slack">Slack</label>
+                        </div>
+
+                        @if (form.SlackEnabled)
+                        {
+                            <div class="mb-2">
+                                <label for="sub-webhook" class="form-label small">Slack webhook URL</label>
+                                <InputText id="sub-webhook" class="form-control" @bind-Value="form.SlackWebhookUrl"
+                                           maxlength="@Subscription.SlackWebhookUrlMaxLength"
+                                           placeholder="@($"{Subscription.SlackWebhookUrlPrefix}/...")"/>
+                                <div class="form-text">The webhook posts to its own default channel.</div>
+                            </div>
+                        }
+
+                        <ErrorList Messages="errors"/>
+                    </div>
+                    <div class="modal-footer">
+                        @if (Exists)
+                        {
+                            @* Its accessible name is the visible "Unsubscribe" within the dialog titled for this feed —
+                               deliberately not the card button's aria-label, so the two never collide. *@
+                            <button type="button" class="btn btn-danger me-auto" disabled="@busy" @onclick="RemoveAsync">Unsubscribe</button>
+                        }
+                        <button type="button" class="btn btn-outline-secondary" disabled="@busy" @onclick="CloseAsync">Cancel</button>
+                        <button type="submit" class="btn btn-primary" disabled="@busy">Save</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show"></div>
+}
+
+@code {
+    /// <summary>The feed the dialog manages the subscription for.</summary>
+    [Parameter, EditorRequired] public Guid FeedId { get; set; }
+
+    [Parameter, EditorRequired] public string FeedName { get; set; } = string.Empty;
+
+    /// <summary>The signed-in user's id — sourced from the authenticated principal by the host page, never the client.</summary>
+    [Parameter] public string? UserId { get; set; }
+
+    /// <summary>The account's verified email address, shown as the (fixed) email target.</summary>
+    [Parameter] public string? AccountEmail { get; set; }
+
+    [Parameter] public bool Visible { get; set; }
+
+    /// <summary>Raised after a save or removal with the new subscribed state, so the host flips the card button.</summary>
+    [Parameter] public EventCallback<bool> OnChanged { get; set; }
+
+    /// <summary>Raised when the dialog is dismissed (Cancel, close, or after a completed action).</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private readonly FormModel form = new();
+    private bool Exists;
+    private bool busy;
+    private IReadOnlyList<string> errors = [];
+    private Guid loadedFeedId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Load the channel state once each time the dialog opens for a feed; reset when it closes so it reloads next time.
+        if (Visible && FeedId != Guid.Empty && FeedId != loadedFeedId)
+        {
+            loadedFeedId = FeedId;
+            await LoadAsync();
+        }
+        else if (!Visible)
+        {
+            loadedFeedId = Guid.Empty;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        errors = [];
+        busy = false;
+        var result = await SubscriptionService.GetSubscriptionForEditAsync(UserId, FeedId);
+        if (result.IsError)
+        {
+            errors = [.. result.Errors.Select(e => e.Description)];
+            Exists = false;
+            form.EmailEnabled = true;
+            form.SlackEnabled = false;
+            form.SlackWebhookUrl = null;
+            return;
+        }
+
+        var state = result.Value;
+        Exists = state.Exists;
+        form.EmailEnabled = state.EmailEnabled;
+        form.SlackEnabled = state.SlackEnabled;
+        form.SlackWebhookUrl = state.WebhookPrefill;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (busy || string.IsNullOrEmpty(UserId))
+            return;
+
+        busy = true;
+        try
+        {
+            errors = [];
+            var request = new SaveSubscriptionRequest(form.EmailEnabled, form.SlackEnabled, form.SlackWebhookUrl);
+            var result = await SubscriptionService.SaveSubscriptionAsync(UserId, FeedId, request);
+            if (result.IsError)
+            {
+                errors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            await OnChanged.InvokeAsync(true);
+            await OnClose.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (busy || string.IsNullOrEmpty(UserId))
+            return;
+
+        busy = true;
+        try
+        {
+            errors = [];
+            var result = await SubscriptionService.UnsubscribeAsync(UserId, FeedId);
+            // Already gone (e.g. removed in another tab) is the state the user asked for.
+            if (result.IsError && result.FirstError.Code != SubscriptionErrors.NotSubscribed.Code)
+            {
+                errors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            await OnChanged.InvokeAsync(false);
+            await OnClose.InvokeAsync();
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private Task CloseAsync() => busy ? Task.CompletedTask : OnClose.InvokeAsync();
+
+    private sealed class FormModel
+    {
+        public bool EmailEnabled { get; set; } = true;
+        public bool SlackEnabled { get; set; }
+        public string? SlackWebhookUrl { get; set; }
+    }
+}

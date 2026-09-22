@@ -1,15 +1,15 @@
-@* Subscribe / Unsubscribe (red) for signed-in users; anonymous users are sent to log in and come back. *@
+@* Subscribe / Unsubscribe (red) for signed-in users open the channel dialog; anonymous users are sent to log in and come back. *@
 @if (!IsAuthenticated)
 {
     <a href="@LoginUrl" class="btn btn-sm btn-primary" aria-label="@($"Subscribe to {FeedName}")">Subscribe</a>
 }
 else if (IsSubscribed)
 {
-    <button type="button" class="btn btn-sm btn-danger" disabled="@Busy" aria-label="@($"Unsubscribe from {FeedName}")" @onclick="OnToggle">Unsubscribe</button>
+    <button type="button" class="btn btn-sm btn-danger" aria-label="@($"Unsubscribe from {FeedName}")" @onclick="OnOpen">Unsubscribe</button>
 }
 else
 {
-    <button type="button" class="btn btn-sm btn-primary" disabled="@Busy" aria-label="@($"Subscribe to {FeedName}")" @onclick="OnToggle">Subscribe</button>
+    <button type="button" class="btn btn-sm btn-primary" aria-label="@($"Subscribe to {FeedName}")" @onclick="OnOpen">Subscribe</button>
 }
 
 @code {
@@ -19,11 +19,9 @@ else
     [Parameter] public bool IsAuthenticated { get; set; }
     [Parameter] public bool IsSubscribed { get; set; }
 
-    /// <summary>Disables the button while a subscribe/unsubscribe call is in flight.</summary>
-    [Parameter] public bool Busy { get; set; }
-
     /// <summary>Where anonymous users go to sign in (carries the return URL).</summary>
     [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
 
-    [Parameter] public EventCallback OnToggle { get; set; }
+    /// <summary>Opens the subscribe/manage dialog for this feed (signed-in users only).</summary>
+    [Parameter] public EventCallback OnOpen { get; set; }
 }
