@@ -49,7 +49,7 @@ public sealed class HomePageComponentTests : BunitContext
     }
 
     private void UseSubscriptions(ISubscriptionService? service = null) =>
-        Services.AddSingleton(service ?? new SubscriptionService(_db));
+        Services.AddSingleton(service ?? new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
 
     private ApplicationUser SignInAs(string email)
     {
@@ -126,7 +126,7 @@ public sealed class HomePageComponentTests : BunitContext
     [Fact]
     public async Task WhileTheCallIsInFlight_TheButtonIsDisabled()
     {
-        var gated = new GatedSubscriptionService(new SubscriptionService(_db));
+        var gated = new GatedSubscriptionService(new SubscriptionService(_db, new SaveSubscriptionRequestValidator()));
         UseSubscriptions(gated);
         SignInAs("alice@example.test");
         var cut = RenderHome();
@@ -236,6 +236,15 @@ public sealed class HomePageComponentTests : BunitContext
         public Task<IReadOnlySet<Guid>> GetSubscribedFeedIdsAsync(string? userId, CancellationToken cancellationToken = default) =>
             inner.GetSubscribedFeedIdsAsync(userId, cancellationToken);
 
+        public Task<ErrorOr<SubscriptionState>> GetSubscriptionForEditAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
+            inner.GetSubscriptionForEditAsync(userId, feedId, cancellationToken);
+
+        public async Task<ErrorOr<Success>> SaveSubscriptionAsync(string? userId, Guid feedId, SaveSubscriptionRequest request, CancellationToken cancellationToken = default)
+        {
+            await _gate.Task;
+            return await inner.SaveSubscriptionAsync(userId, feedId, request, cancellationToken);
+        }
+
         public async Task<ErrorOr<Success>> SubscribeByEmailAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default)
         {
             await _gate.Task;
@@ -250,6 +259,12 @@ public sealed class HomePageComponentTests : BunitContext
     {
         public Task<IReadOnlySet<Guid>> GetSubscribedFeedIdsAsync(string? userId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlySet<Guid>>(new HashSet<Guid>());
+
+        public Task<ErrorOr<SubscriptionState>> GetSubscriptionForEditAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<ErrorOr<SubscriptionState>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
+
+        public Task<ErrorOr<Success>> SaveSubscriptionAsync(string? userId, Guid feedId, SaveSubscriptionRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult<ErrorOr<Success>>(ErrorOr.Error.Failure("Subscription.Failed", reason));
 
         public Task<ErrorOr<Success>> SubscribeByEmailAsync(string? userId, Guid feedId, CancellationToken cancellationToken = default) =>
             Task.FromResult<ErrorOr<Success>>(ErrorOr.Error.Failure("Subscription.Failed", reason));

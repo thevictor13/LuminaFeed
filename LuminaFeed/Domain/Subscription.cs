@@ -13,6 +13,12 @@ public sealed class Subscription : EntityBase
     public const int UserIdMaxLength = 450;
     public const int SlackWebhookUrlMaxLength = 2048;
 
+    /// <summary>
+    /// The prefix every genuine Slack incoming webhook starts with. The single source for the C1 subscribe-dialog
+    /// validator's <see cref="SlackWebhookUrl"/> check.
+    /// </summary>
+    public const string SlackWebhookUrlPrefix = "https://hooks.slack.com/services";
+
     /// <summary>FK to the Identity user (<see cref="ApplicationUser.Id"/>, a string key).</summary>
     public required string UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;
