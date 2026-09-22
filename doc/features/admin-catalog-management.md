@@ -47,7 +47,8 @@ dialog closes, the table refreshes and the notice updates. (C1's subscribe dialo
   - `UpdateAsync(UpdateCategoryRequest)` **(A1)** — trims input; not-found for an unknown id; duplicate-name check
     ignores the row being edited.
   - `DeleteAsync(Guid id)` **(A1)** — `ErrorOr<Deleted>`; not-found for an unknown id; refuses with a conflict while
-    the category still holds feeds.
+    the category still holds feeds — checked up front, and **re-checked** if a feed is assigned concurrently, so the
+    `Restrict` FK surfaces as the same `Category.HasFeeds` conflict rather than an unhandled error.
 - **`Feeds/IFeedService` → `FeedService`**
   - `ListAsync()` — `FeedSummary` rows ordered by category name, then feed name.
   - `CreateAsync(CreateFeedRequest)` — trims input, stores blank optionals as `null`.
@@ -81,7 +82,9 @@ the forms' `maxlength` attributes use, so they cannot drift (`LimitsTests` guard
 rejected); popularity ≥ 0.
 
 The duplicate checks run before the insert; if a concurrent create still trips the unique index, the resulting
-`DbUpdateException` is re-checked and reported as the same `Conflict`, and anything else is rethrown.
+`DbUpdateException` is re-checked and reported as the same `Conflict`, and anything else is rethrown. The category
+delete guards the `Feed → Category` `Restrict` FK the same way: if a feed is assigned between the up-front count and
+the save, the `DbUpdateException` is re-checked and reported as `Category.HasFeeds`.
 
 ## Persistence access: `IDbContextFactory`
 
@@ -98,7 +101,9 @@ so Identity's stores and the seeders are unchanged.
   validation errors, URL scheme rejection, conflicts ignoring case, unknown category, list ordering, feed counts.
   `CategoryServiceTests` also covers **A1**: update persists/trims and keeps its feed count, a rename onto another
   category is a conflict while a case-variant of the row's own name is allowed, unknown-id updates/deletes are
-  not-found, and deleting a category with feeds is a `Category.HasFeeds` conflict.
+  not-found, and deleting a category with feeds is a `Category.HasFeeds` conflict — including when the feed is added
+  concurrently, during the delete's own save (an EF interceptor drives the race), so the `Restrict` FK violation is
+  reported as the conflict instead of escaping.
   `FeedServiceTests` also covers **A2**: update persists including a category change, a duplicate-URL conflict vs.
   another feed (a case-variant of the row's own URL is allowed), unknown-feed / unknown-category not-found, non-http
   URL validation; delete cascades the feed's subscriptions and articles while leaving other feeds' rows intact;

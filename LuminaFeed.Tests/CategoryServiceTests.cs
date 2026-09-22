@@ -1,6 +1,9 @@
 using ErrorOr;
+using LuminaFeed.Data;
 using LuminaFeed.Domain;
 using LuminaFeed.Services.Categories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace LuminaFeed.Tests;
 
@@ -239,5 +242,77 @@ public sealed class CategoryServiceTests : IDisposable
         Assert.True(result.IsError);
         Assert.Equal(ErrorType.NotFound, result.FirstError.Type);
         Assert.Equal("Category.NotFound", result.FirstError.Code);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenAFeedIsAddedDuringTheSave_IsAConflict_NotAnUnhandledThrow()
+    {
+        // The category is empty when the count check runs, but a second admin assigns a feed to it in the window
+        // before the delete's SaveChanges lands. The Feed → Category Restrict FK trips; the service must re-check
+        // and report the same HasFeeds conflict rather than letting the DbUpdateException escape.
+        var category = _db.AddCategory("Science");
+        var racingFactory = new FeedRacingFactory(_db, category.Id);
+        var service = new CategoryService(
+            racingFactory, new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator());
+
+        var result = await service.DeleteAsync(category.Id);
+
+        Assert.True(result.IsError);
+        Assert.Equal(ErrorType.Conflict, result.FirstError.Type);
+        Assert.Equal("Category.HasFeeds", result.FirstError.Code);
+
+        using var ctx = _db.CreateDbContext();
+        Assert.Single(ctx.Categories);
+        Assert.Single(ctx.Feeds);
+    }
+
+    /// <summary>
+    /// Hands the <b>first</b> context it creates (the one the delete saves through) an interceptor that inserts a
+    /// feed into the target category on the shared connection just before the DELETE executes — reproducing a second
+    /// admin adding a feed in the window between the service's feed-count check and its save. Every later context
+    /// (the service's re-check) is plain, so it observes the raced feed.
+    /// </summary>
+    private sealed class FeedRacingFactory(SqliteTestDatabase db, Guid categoryId)
+        : IDbContextFactory<ApplicationDbContext>
+    {
+        private bool _armed = true;
+
+        public ApplicationDbContext CreateDbContext()
+        {
+            if (!_armed)
+                return db.CreateDbContext();
+
+            _armed = false;
+            return db.CreateDbContext(new InsertFeedOnSaveInterceptor(() => db.AddFeed(categoryId, "Raced feed")));
+        }
+    }
+
+    /// <summary>Runs <paramref name="onFirstSave"/> once, just before the context's first save executes.</summary>
+    private sealed class InsertFeedOnSaveInterceptor(Action onFirstSave) : SaveChangesInterceptor
+    {
+        private bool _fired;
+
+        public override InterceptionResult<int> SavingChanges(
+            DbContextEventData eventData, InterceptionResult<int> result)
+        {
+            Fire();
+            return base.SavingChanges(eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            Fire();
+            return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+
+        private void Fire()
+        {
+            if (_fired)
+                return;
+
+            _fired = true;
+            onFirstSave();
+        }
     }
 }

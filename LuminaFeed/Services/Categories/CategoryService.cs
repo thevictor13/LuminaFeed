@@ -108,7 +108,21 @@ public sealed class CategoryService(
             return CategoryErrors.HasFeeds(id, feedCount);
 
         db.Categories.Remove(category);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Lost a race against a feed concurrently assigned to this category between the count above and the
+            // save: the Restrict FK trips. Re-check and report the same conflict; anything else is a real fault.
+            await using var check = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var raced = await check.Feeds.CountAsync(f => f.CategoryId == id, cancellationToken);
+            if (raced > 0)
+                return CategoryErrors.HasFeeds(id, raced);
+            throw;
+        }
+
         return Result.Deleted;
     }
 

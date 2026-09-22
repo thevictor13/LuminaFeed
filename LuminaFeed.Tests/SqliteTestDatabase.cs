@@ -2,6 +2,7 @@ using LuminaFeed.Data;
 using LuminaFeed.Domain;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace LuminaFeed.Tests;
 
@@ -22,8 +23,17 @@ internal sealed class SqliteTestDatabase : IDbContextFactory<ApplicationDbContex
         ctx.Database.EnsureCreated();
     }
 
-    public ApplicationDbContext CreateDbContext() =>
-        new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
+    public ApplicationDbContext CreateDbContext() => CreateDbContext(interceptors: []);
+
+    /// <summary>
+    /// A context on the shared connection carrying the given EF interceptors. Lets a test wedge behaviour into a
+    /// service's own <c>SaveChanges</c> (e.g. to drive a concurrent-write race) without exposing the connection.
+    /// </summary>
+    public ApplicationDbContext CreateDbContext(params IInterceptor[] interceptors) =>
+        new(new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlite(_connection)
+            .AddInterceptors(interceptors)
+            .Options);
 
     public void Dispose() => _connection.Dispose();
 
