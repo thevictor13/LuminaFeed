@@ -1,6 +1,5 @@
 using Ardalis.SmartEnum;
 using ErrorOr;
-using LuminaFeed.Domain;
 
 namespace LuminaFeed.Services.Notifications;
 
@@ -15,9 +14,9 @@ public sealed class NotificationChannel : SmartEnum<NotificationChannel>
     }
 }
 
-/// <summary>New articles to tell one subscriber about. Each article should have its <see cref="Article.Feed"/> populated.</summary>
+/// <summary>New articles to tell one subscriber about.</summary>
 /// <param name="RecipientEmail">The subscriber's registered, verified email address (the polling result's key).</param>
-public sealed record ArticleNotification(string RecipientEmail, IReadOnlyList<Article> Articles);
+public sealed record ArticleNotification(string RecipientEmail, IReadOnlyList<NewArticle> Articles);
 
 /// <summary>
 /// Delivers new-article alerts over one <see cref="Channel"/>. The polling background service invokes the

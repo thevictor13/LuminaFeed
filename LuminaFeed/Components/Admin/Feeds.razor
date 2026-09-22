@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = AdminAuthorization.PolicyName)]
 @rendermode InteractiveServer
 
+@using LuminaFeed.Domain
 @using LuminaFeed.Services.Categories
 @using LuminaFeed.Services.Feeds
 
@@ -32,7 +33,7 @@ else
         <div class="row g-3">
             <div class="col-md-6">
                 <label for="feed-name" class="form-label">Name</label>
-                <InputText id="feed-name" @bind-Value="form.Name" class="form-control" maxlength="@CreateFeedRequestValidator.NameMaxLength"/>
+                <InputText id="feed-name" @bind-Value="form.Name" class="form-control" maxlength="@Feed.NameMaxLength"/>
             </div>
             <div class="col-md-6">
                 <label for="feed-category" class="form-label">Category</label>

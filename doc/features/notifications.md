@@ -7,7 +7,10 @@ and Outlook buttons with C3, per-user channel dispatch with C4, and the RFC 8058
 ## Abstraction (`LuminaFeed/Services/Notifications/`)
 
 - **`NotificationChannel`** — an `Ardalis.SmartEnum`: `Email`, `Slack`.
-- **`ArticleNotification(RecipientEmail, Articles)`** — what one subscriber is told about (articles carry their `Feed`).
+- **`NewArticle(ArticleId, FeedId, FeedName, Title, Link, Summary, ImageUrl, PublishedAt)`** — a newly stored article as
+  polling hands it over: a plain value, not the `Article` entity, so no channel depends on EF navigations or tracking.
+  `FeedId` is what digests group by (feed names are not unique); `ArticleId` points back at the stored row.
+- **`ArticleNotification(RecipientEmail, Articles)`** — what one subscriber is told about (a list of `NewArticle`).
 - **`INotificationService`** — `Channel` + `NotifyAsync(notification) : ErrorOr<Success>`. Delivery problems are
   **returned as errors, not thrown**, so one failing recipient or channel can never take the others down.
 
@@ -18,10 +21,10 @@ Builds **one digest email per subscriber per polling pass** and sends it through
 
 - **Subject** — `New from <feed>: <title>` for a single article; `<n> new articles from <feed>` for several from one
   feed; `<n> new articles from <k> feeds` otherwise.
-- **Body** — rendered inside the table-based, Outlook-safe `EmailLayout` (no `<div>`): articles grouped under their
-  feed name (feeds alphabetically, articles in the order given — newest first), each with a linked title, the
-  publication time in UTC when known, and the summary shortened to 300 characters. A **plain-text alternative** with
-  the same content is attached.
+- **Body** — rendered inside the table-based, Outlook-safe `EmailLayout` (no `<div>`): articles grouped **by feed id**
+  under the feed's name (feeds alphabetically by name, articles in the order given — newest first), each with a linked
+  title, the publication time in UTC when known, and the summary shortened to 300 characters. A **plain-text
+  alternative** with the same content is attached.
 - **Untrusted content** — every feed-supplied value (feed name, title, summary, link) is **HTML-encoded**; links were
   already restricted to absolute http(s) URLs by the parser.
 - An empty article list sends nothing. A transport failure becomes `Notification.EmailFailed` carrying the cause
@@ -55,9 +58,9 @@ re-announced on the next tick. With Papercut running on `localhost:25` that dige
 
 ## Tests
 
-- `EmailNotificationServiceTests` — channel, recipient/subject variants, table-based body, grouping and order, HTML
-  encoding of hostile feed content, text alternative, summary shortening, article without feed/summary/date, empty
-  list, transport failure → error with cause, cancellation.
+- `EmailNotificationServiceTests` — channel, recipient/subject variants, table-based body, grouping and order (two
+  same-named feeds stay two groups), HTML encoding of hostile feed content, text alternative, summary shortening,
+  article without summary/date, empty list, transport failure → error with cause, cancellation.
 - `FeedPollingBackgroundServiceTests` — one notification per subscriber with their own articles, email channel only,
   a failing or throwing recipient doesn't block the others, nothing new → nobody notified, no email service → warning.
 - `WalkingSkeletonTests` — the end-to-end flow above, plus the DI registration of `EmailNotificationService`.

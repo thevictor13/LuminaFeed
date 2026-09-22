@@ -90,7 +90,7 @@ public sealed class FeedPollingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PollAsync_ReturnsNewArticlesKeyedBySubscriberEmail_WithTheFeedPopulated()
+    public async Task PollAsync_ReturnsNewArticlesKeyedBySubscriberEmail_AsValuesNamingTheirFeed()
     {
         var feed = AddFeed("bbc");
         Subscribe(_db.AddUser("alice@example.test"), feed);
@@ -100,10 +100,17 @@ public sealed class FeedPollingServiceTests : IDisposable
         var result = await CreateService().PollAsync();
 
         Assert.Equal(["alice@example.test", "bob@example.test"], result.Keys.Order());
+        var storedIds = StoredArticles().Select(a => a.Id).ToHashSet();
         Assert.All(result.Values, articles =>
         {
             Assert.Equal(["Article 2", "Article 1"], articles.Select(a => a.Title));
-            Assert.All(articles, a => Assert.Equal("bbc", a.Feed.Name));
+            Assert.All(articles, a =>
+            {
+                // A plain value: the feed's id and name travel with it, and it points at the stored row.
+                Assert.Equal(feed.Id, a.FeedId);
+                Assert.Equal("bbc", a.FeedName);
+                Assert.Contains(a.ArticleId, storedIds);
+            });
         });
         Assert.True(result.ContainsKey("ALICE@example.test"), "Email keys are case-insensitive.");
     }
@@ -332,9 +339,9 @@ public sealed class FeedPollingServiceTests : IDisposable
     {
         var feed = AddFeed("bbc");
         Subscribe(_db.AddUser(), feed);
-        var longTitle = new string('t', ArticleLimits.TitleMaxLength + 50);
-        var longGuid = new string('g', ArticleLimits.ExternalIdMaxLength + 50);
-        var longLink = "https://articles.example.test/" + new string('l', ArticleLimits.UrlMaxLength);
+        var longTitle = new string('t', Article.TitleMaxLength + 50);
+        var longGuid = new string('g', Article.ExternalIdMaxLength + 50);
+        var longLink = "https://articles.example.test/" + new string('l', Article.UrlMaxLength);
         _fetcher.Serve(feed.FeedUrl, $"""
             <rss version="2.0"><channel>
               <item><guid isPermaLink="false">{longGuid}</guid><title>{longTitle}</title><link>https://articles.example.test/ok</link></item>
@@ -345,19 +352,8 @@ public sealed class FeedPollingServiceTests : IDisposable
         await CreateService().PollAsync();
 
         var article = Assert.Single(StoredArticles());
-        Assert.Equal(ArticleLimits.TitleMaxLength, article.Title.Length);
-        Assert.Equal(ArticleLimits.ExternalIdMaxLength, article.ExternalId.Length);
+        Assert.Equal(Article.TitleMaxLength, article.Title.Length);
+        Assert.Equal(Article.ExternalIdMaxLength, article.ExternalId.Length);
     }
 
-    [Fact]
-    public void ArticleLimits_MatchTheColumnLimits()
-    {
-        using var ctx = _db.CreateDbContext();
-        var entity = ctx.Model.FindEntityType(typeof(Article))!;
-
-        Assert.Equal(ArticleLimits.ExternalIdMaxLength, entity.FindProperty(nameof(Article.ExternalId))!.GetMaxLength());
-        Assert.Equal(ArticleLimits.TitleMaxLength, entity.FindProperty(nameof(Article.Title))!.GetMaxLength());
-        Assert.Equal(ArticleLimits.UrlMaxLength, entity.FindProperty(nameof(Article.Link))!.GetMaxLength());
-        Assert.Equal(ArticleLimits.UrlMaxLength, entity.FindProperty(nameof(Article.ImageUrl))!.GetMaxLength());
-    }
 }

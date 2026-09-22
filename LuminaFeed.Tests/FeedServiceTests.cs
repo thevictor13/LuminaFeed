@@ -214,17 +214,4 @@ public sealed class FeedServiceTests : IDisposable
         var feed = Assert.Single(Assert.Single(await service.ListByCategoryAsync()).Feeds);
         Assert.Equal(created.Value, feed);
     }
-
-    [Fact]
-    public void ValidatorLimits_MatchTheColumnLimits()
-    {
-        using var ctx = _db.CreateDbContext();
-        var entity = ctx.Model.FindEntityType(typeof(Feed))!;
-
-        Assert.Equal(CreateFeedRequestValidator.NameMaxLength, entity.FindProperty(nameof(Feed.Name))!.GetMaxLength());
-        Assert.Equal(CreateFeedRequestValidator.UrlMaxLength, entity.FindProperty(nameof(Feed.FeedUrl))!.GetMaxLength());
-        Assert.Equal(CreateFeedRequestValidator.UrlMaxLength, entity.FindProperty(nameof(Feed.SiteUrl))!.GetMaxLength());
-        Assert.Equal(CreateFeedRequestValidator.UrlMaxLength, entity.FindProperty(nameof(Feed.ImageUrl))!.GetMaxLength());
-        Assert.Equal(CreateFeedRequestValidator.DescriptionMaxLength, entity.FindProperty(nameof(Feed.Description))!.GetMaxLength());
-    }
 }

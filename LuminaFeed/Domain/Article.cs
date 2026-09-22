@@ -4,6 +4,11 @@ namespace LuminaFeed.Domain;
 /// <see cref="ExternalId"/> (the RSS &lt;guid&gt; or, failing that, the item link).</summary>
 public sealed class Article : EntityBase
 {
+    // Column limits: the single source for the EF configuration and the poller's column fitting.
+    public const int ExternalIdMaxLength = 1024;
+    public const int TitleMaxLength = 500;
+    public const int UrlMaxLength = 2048;
+
     public Guid FeedId { get; set; }
     public Feed Feed { get; set; } = null!;
 

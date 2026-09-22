@@ -1,5 +1,4 @@
 using ErrorOr;
-using LuminaFeed.Domain;
 using LuminaFeed.Options;
 using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
@@ -11,14 +10,14 @@ namespace LuminaFeed.Tests;
 /// <summary>Covers the polling loop: it polls at startup, keeps ticking, survives failures and stops cleanly.</summary>
 public class FeedPollingBackgroundServiceTests
 {
-    private sealed class ScriptedPollingService(Func<int, IReadOnlyDictionary<string, IReadOnlyList<Article>>> onPoll) : IFeedPollingService
+    private sealed class ScriptedPollingService(Func<int, IReadOnlyDictionary<string, IReadOnlyList<NewArticle>>> onPoll) : IFeedPollingService
     {
         private int _calls;
         private readonly SemaphoreSlim _polled = new(0);
 
         public int Calls => Volatile.Read(ref _calls);
 
-        public Task<IReadOnlyDictionary<string, IReadOnlyList<Article>>> PollAsync(CancellationToken cancellationToken = default)
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<NewArticle>>> PollAsync(CancellationToken cancellationToken = default)
         {
             var call = Interlocked.Increment(ref _calls);
             _polled.Release();
@@ -33,8 +32,8 @@ public class FeedPollingBackgroundServiceTests
         }
     }
 
-    private static readonly IReadOnlyDictionary<string, IReadOnlyList<Article>> Nothing =
-        new Dictionary<string, IReadOnlyList<Article>>();
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<NewArticle>> Nothing =
+        new Dictionary<string, IReadOnlyList<NewArticle>>();
 
     private sealed class FakeNotificationService(NotificationChannel channel, Func<ArticleNotification, ErrorOr<Success>>? onNotify = null)
         : INotificationService
@@ -50,12 +49,9 @@ public class FeedPollingBackgroundServiceTests
         }
     }
 
-    private static Article NewArticle(string title) => new()
-    {
-        ExternalId = title,
-        Title = title,
-        Link = "https://articles.example.test/" + title,
-    };
+    private static NewArticle Story(string title) => new(
+        Guid.CreateVersion7(), Guid.Empty, "Feed", title, "https://articles.example.test/" + title,
+        Summary: null, ImageUrl: null, PublishedAt: null);
 
     private static (FeedPollingBackgroundService Service, ListLogger<FeedPollingBackgroundService> Logger, ServiceProvider Provider)
         Create(IFeedPollingService polling, int intervalSeconds = 3600, params INotificationService[] notifiers)
@@ -135,9 +131,9 @@ public class FeedPollingBackgroundServiceTests
     [Fact]
     public async Task RunCycleAsync_SendsEachSubscriberTheirArticles_ThroughTheEmailChannelOnly()
     {
-        var forAlice = new[] { NewArticle("A1"), NewArticle("A2") };
-        var forBob = new[] { NewArticle("B1") };
-        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        var forAlice = new[] { Story("A1"), Story("A2") };
+        var forBob = new[] { Story("B1") };
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<NewArticle>>
         {
             ["alice@example.test"] = forAlice,
             ["bob@example.test"] = forBob,
@@ -161,11 +157,11 @@ public class FeedPollingBackgroundServiceTests
     [InlineData(true)]
     public async Task RunCycleAsync_OneFailingRecipient_DoesNotBlockTheOthers(bool failureThrows)
     {
-        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<NewArticle>>
         {
-            ["alice@example.test"] = [NewArticle("A1")],
-            ["bob@example.test"] = [NewArticle("B1")],
-            ["carol@example.test"] = [NewArticle("C1")],
+            ["alice@example.test"] = [Story("A1")],
+            ["bob@example.test"] = [Story("B1")],
+            ["carol@example.test"] = [Story("C1")],
         });
         var email = new FakeNotificationService(NotificationChannel.Email, notification =>
             notification.RecipientEmail != "bob@example.test" ? Result.Success
@@ -197,9 +193,9 @@ public class FeedPollingBackgroundServiceTests
     [Fact]
     public async Task RunCycleAsync_NewArticlesButNoEmailService_LogsAWarning()
     {
-        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<Article>>
+        var polling = new ScriptedPollingService(_ => new Dictionary<string, IReadOnlyList<NewArticle>>
         {
-            ["alice@example.test"] = [NewArticle("A1")],
+            ["alice@example.test"] = [Story("A1")],
         });
         var (service, logger, provider) = Create(polling);
         using var disposeProvider = provider;

@@ -1,5 +1,4 @@
 using ErrorOr;
-using LuminaFeed.Domain;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Notifications;
 
@@ -39,23 +38,19 @@ public class EmailNotificationServiceTests
 
     private EmailNotificationService CreateService() => new(_mail);
 
-    private static Feed NewFeed(string name) => new()
-    {
-        Name = name,
-        FeedUrl = $"https://feeds.example.test/{name}.xml",
-        SiteUrl = "https://www.example.test",
-    };
+    private sealed record FeedRef(Guid Id, string Name);
 
-    private static Article NewArticle(Feed? feed, string title, string? summary = null, string? link = null, DateTimeOffset? publishedAt = null) => new()
-    {
-        Feed = feed!,
-        FeedId = feed?.Id ?? Guid.Empty,
-        ExternalId = title,
-        Title = title,
-        Link = link ?? "https://articles.example.test/" + Uri.EscapeDataString(title),
-        Summary = summary,
-        PublishedAt = publishedAt,
-    };
+    private static FeedRef NewFeed(string name) => new(Guid.CreateVersion7(), name);
+
+    private static NewArticle Story(FeedRef feed, string title, string? summary = null, string? link = null, DateTimeOffset? publishedAt = null) => new(
+        Guid.CreateVersion7(),
+        feed.Id,
+        feed.Name,
+        title,
+        link ?? "https://articles.example.test/" + Uri.EscapeDataString(title),
+        summary,
+        ImageUrl: null,
+        publishedAt);
 
     [Fact]
     public void Channel_IsEmail()
@@ -67,7 +62,7 @@ public class EmailNotificationServiceTests
     [Fact]
     public async Task NotifyAsync_SingleArticle_SendsOneEmailToTheSubscriber()
     {
-        var article = NewArticle(NewFeed("BBC News"), "Big headline", "What happened.",
+        var article = Story(NewFeed("BBC News"), "Big headline", "What happened.",
             publishedAt: new DateTimeOffset(2026, 9, 21, 12, 30, 0, TimeSpan.FromHours(2)));
 
         var result = await CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]));
@@ -86,7 +81,7 @@ public class EmailNotificationServiceTests
     [Fact]
     public async Task NotifyAsync_BodyIsTableBased_ForOutlook()
     {
-        var article = NewArticle(NewFeed("BBC News"), "Big headline", "What happened.");
+        var article = Story(NewFeed("BBC News"), "Big headline", "What happened.");
 
         await CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]));
 
@@ -101,7 +96,7 @@ public class EmailNotificationServiceTests
         var feed = NewFeed("BBC News");
 
         await CreateService().NotifyAsync(new ArticleNotification(
-            "alice@example.test", [NewArticle(feed, "One"), NewArticle(feed, "Two"), NewArticle(feed, "Three")]));
+            "alice@example.test", [Story(feed, "One"), Story(feed, "Two"), Story(feed, "Three")]));
 
         var email = Assert.Single(_mail.Sent);
         Assert.Equal("3 new articles from BBC News", email.Subject);
@@ -117,7 +112,7 @@ public class EmailNotificationServiceTests
         var dw = NewFeed("Deutsche Welle");
 
         await CreateService().NotifyAsync(new ArticleNotification(
-            "alice@example.test", [NewArticle(dw, "DW story"), NewArticle(bbc, "BBC story"), NewArticle(dw, "DW second")]));
+            "alice@example.test", [Story(dw, "DW story"), Story(bbc, "BBC story"), Story(dw, "DW second")]));
 
         var email = Assert.Single(_mail.Sent);
         Assert.Equal("3 new articles from 2 feeds", email.Subject);
@@ -132,7 +127,7 @@ public class EmailNotificationServiceTests
     [Fact]
     public async Task NotifyAsync_HtmlEncodesEverythingThatCameFromTheFeed()
     {
-        var article = NewArticle(
+        var article = Story(
             NewFeed("Evil <b>Feed</b>"),
             title: "<script>alert('title')</script>",
             summary: "<img src=x onerror=alert(1)> & more",
@@ -154,7 +149,7 @@ public class EmailNotificationServiceTests
         var feed = NewFeed("BBC News");
 
         await CreateService().NotifyAsync(new ArticleNotification(
-            "alice@example.test", [NewArticle(feed, "Big headline", "What happened.")]));
+            "alice@example.test", [Story(feed, "Big headline", "What happened.")]));
 
         var text = Assert.Single(_mail.Sent).TextBody;
         Assert.NotNull(text);
@@ -168,7 +163,7 @@ public class EmailNotificationServiceTests
     [Fact]
     public async Task NotifyAsync_LongSummary_IsShortened()
     {
-        var article = NewArticle(NewFeed("BBC News"), "Headline", new string('s', 2000));
+        var article = Story(NewFeed("BBC News"), "Headline", new string('s', 2000));
 
         await CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]));
 
@@ -178,14 +173,31 @@ public class EmailNotificationServiceTests
     }
 
     [Fact]
-    public async Task NotifyAsync_ArticleWithoutFeedOrSummaryOrDate_StillSends()
+    public async Task NotifyAsync_TwoFeedsWithTheSameName_StayTwoGroups()
     {
-        var article = NewArticle(feed: null, "Orphan");
+        // Feed names are not unique (only feed URLs are), so grouping goes by feed id.
+        var first = NewFeed("News");
+        var second = NewFeed("News");
+
+        await CreateService().NotifyAsync(new ArticleNotification(
+            "alice@example.test", [Story(first, "From the first"), Story(second, "From the second")]));
+
+        var email = Assert.Single(_mail.Sent);
+        Assert.Equal("2 new articles from 2 feeds", email.Subject);
+        Assert.Equal(2, email.HtmlBody.Split(">News<").Length - 1);
+    }
+
+    [Fact]
+    public async Task NotifyAsync_ArticleWithoutSummaryOrDate_StillSends()
+    {
+        var article = Story(NewFeed("BBC News"), "Bare");
 
         var result = await CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]));
 
         Assert.False(result.IsError);
-        Assert.Equal("New from LuminaFeed: Orphan", Assert.Single(_mail.Sent).Subject);
+        var email = Assert.Single(_mail.Sent);
+        Assert.Equal("New from BBC News: Bare", email.Subject);
+        Assert.DoesNotContain("UTC", email.HtmlBody);
     }
 
     [Fact]
@@ -201,7 +213,7 @@ public class EmailNotificationServiceTests
     public async Task NotifyAsync_TransportFailure_IsAnErrorCarryingTheCause_NotAnException()
     {
         _mail.FailWith = new InvalidOperationException("SMTP is down");
-        var article = NewArticle(NewFeed("BBC News"), "Headline");
+        var article = Story(NewFeed("BBC News"), "Headline");
 
         var result = await CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]));
 
@@ -217,7 +229,7 @@ public class EmailNotificationServiceTests
     {
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
-        var article = NewArticle(NewFeed("BBC News"), "Headline");
+        var article = Story(NewFeed("BBC News"), "Headline");
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             CreateService().NotifyAsync(new ArticleNotification("alice@example.test", [article]), cts.Token));

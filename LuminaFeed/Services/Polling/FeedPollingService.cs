@@ -1,29 +1,11 @@
 using LuminaFeed.Data;
 using LuminaFeed.Domain;
 using LuminaFeed.Options;
+using LuminaFeed.Services.Notifications;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace LuminaFeed.Services.Polling;
-
-/// <summary>One polling pass over the active feeds.</summary>
-public interface IFeedPollingService
-{
-    /// <summary>
-    /// Polls every feed that has at least one subscriber, stores the articles not seen before, and returns the
-    /// articles to notify about, keyed by <b>subscriber email address</b> (email-enabled subscriptions only).
-    /// Each returned <see cref="Article"/> has its <see cref="Article.Feed"/> populated.
-    /// </summary>
-    Task<IReadOnlyDictionary<string, IReadOnlyList<Article>>> PollAsync(CancellationToken cancellationToken = default);
-}
-
-/// <summary>Column limits from <c>ArticleConfiguration</c> (asserted by FeedPollingServiceTests).</summary>
-public static class ArticleLimits
-{
-    public const int ExternalIdMaxLength = 1024;
-    public const int TitleMaxLength = 500;
-    public const int UrlMaxLength = 2048;
-}
 
 public sealed class FeedPollingService(
     IDbContextFactory<ApplicationDbContext> dbFactory,
@@ -32,7 +14,7 @@ public sealed class FeedPollingService(
     TimeProvider timeProvider,
     ILogger<FeedPollingService> logger) : IFeedPollingService
 {
-    public async Task<IReadOnlyDictionary<string, IReadOnlyList<Article>>> PollAsync(
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<NewArticle>>> PollAsync(
         CancellationToken cancellationToken = default)
     {
         List<Guid> activeFeedIds;
@@ -46,7 +28,7 @@ public sealed class FeedPollingService(
                 .ToListAsync(cancellationToken);
         }
 
-        var byEmail = new Dictionary<string, List<Article>>(StringComparer.OrdinalIgnoreCase);
+        var byEmail = new Dictionary<string, List<NewArticle>>(StringComparer.OrdinalIgnoreCase);
         foreach (var feedId in activeFeedIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -66,10 +48,10 @@ public sealed class FeedPollingService(
         }
 
         return byEmail.ToDictionary(
-            pair => pair.Key, pair => (IReadOnlyList<Article>)pair.Value, StringComparer.OrdinalIgnoreCase);
+            pair => pair.Key, pair => (IReadOnlyList<NewArticle>)pair.Value, StringComparer.OrdinalIgnoreCase);
     }
 
-    private async Task PollFeedAsync(Guid feedId, Dictionary<string, List<Article>> byEmail, CancellationToken cancellationToken)
+    private async Task PollFeedAsync(Guid feedId, Dictionary<string, List<NewArticle>> byEmail, CancellationToken cancellationToken)
     {
         // A context per feed keeps a failed save from poisoning the next feed's unit of work.
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
@@ -111,14 +93,17 @@ public sealed class FeedPollingService(
         db.Articles.AddRange(newArticles);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation(
+        // Debug: this fires for every active feed every interval; the pass summary is logged by the loop.
+        logger.LogDebug(
             "Polled '{Feed}': {NewCount} new of {ItemCount} items.", feed.Name, newArticles.Count, candidates.Count);
 
         // Newest first; undated items keep their document order after the dated ones.
         IEnumerable<Article> ordered = newArticles
             .OrderByDescending(a => a.PublishedAt.HasValue)
             .ThenByDescending(a => a.PublishedAt);
-        var notifiable = (isFirstPoll ? ordered.Take(options.Value.FirstPollNotificationCap) : ordered).ToList();
+        var notifiable = (isFirstPoll ? ordered.Take(options.Value.FirstPollNotificationCap) : ordered)
+            .Select(a => ToNewArticle(feed, a))
+            .ToList();
         if (notifiable.Count == 0)
             return;
 
@@ -139,21 +124,24 @@ public sealed class FeedPollingService(
     private static Article? ToArticle(Feed feed, ParsedFeedItem item)
     {
         // A truncated URL is a broken URL, so an over-long link drops the item (and an over-long image, the image).
-        if (item.Link.Length > ArticleLimits.UrlMaxLength)
+        if (item.Link.Length > Article.UrlMaxLength)
             return null;
 
         return new Article
         {
             FeedId = feed.Id,
-            Feed = feed,
-            ExternalId = Truncate(item.ExternalId, ArticleLimits.ExternalIdMaxLength),
-            Title = Truncate(item.Title, ArticleLimits.TitleMaxLength),
+            ExternalId = Truncate(item.ExternalId, Article.ExternalIdMaxLength),
+            Title = Truncate(item.Title, Article.TitleMaxLength),
             Link = item.Link,
             Summary = item.Summary,
-            ImageUrl = item.ImageUrl is { Length: <= ArticleLimits.UrlMaxLength } ? item.ImageUrl : null,
+            ImageUrl = item.ImageUrl is { Length: <= Article.UrlMaxLength } ? item.ImageUrl : null,
             PublishedAt = item.PublishedAt,
         };
     }
+
+    /// <summary>The stored article as the notification services see it: a value with the feed's name attached.</summary>
+    private static NewArticle ToNewArticle(Feed feed, Article article) =>
+        new(article.Id, feed.Id, feed.Name, article.Title, article.Link, article.Summary, article.ImageUrl, article.PublishedAt);
 
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..maxLength];

@@ -8,10 +8,16 @@ All custom entities derive from **`EntityBase`**, whose `Id` is a **GUID v7** (`
 time-ordered) generated on construction. `Id` has a **private setter** so the client-generated value can't be
 overwritten; EF is configured with `ValueGeneratedNever()` to store it verbatim.
 
+Each entity carries its **column limits as `public const int *MaxLength`** members (e.g. `Category.NameMaxLength`,
+`Feed.UrlMaxLength`, `Article.TitleMaxLength`). They are the single source for the EF configuration, the request
+validators, the admin forms' `maxlength` attributes and the poller's column fitting; `LimitsTests` asserts each
+constant equals the mapped column.
+
 - **`Category`** — `Name` (required, unique, ≤100), `Description?` (≤1000), `Feeds` nav.
 - **`Feed`** — `Name` (≤200), `CategoryId` + `Category` nav, `FeedUrl` (required, unique, ≤2048), `SiteUrl` (≤2048),
-  `ImageUrl?` / `Description?`, `Popularity` (fixed sort figure), plus the polling-cache columns populated later by
-  C4: `ETag?` (≤512), `LastModified?` (≤256, raw HTTP value), `LastPolledAt?`. Navs: `Subscriptions`, `Articles`.
+  `ImageUrl?` / `Description?`, `Popularity` (fixed sort figure), `LastPolledAt?` (stamped by polling on each
+  successful poll since S4), plus the conditional-GET cache columns populated by C4: `ETag?` (≤512),
+  `LastModified?` (≤256, raw HTTP value). Navs: `Subscriptions`, `Articles`.
 - **`Subscription`** — `UserId` (string FK to Identity, ≤450) + `User` nav, `FeedId` + `Feed` nav, `EmailEnabled`,
   `SlackEnabled`, `SlackWebhookUrl?` (≤2048), `CreatedAt` (private-set, UtcNow). The `SlackEnabled ⇒ SlackWebhookUrl`
   invariant is **documented but not enforced at this layer** — it is validated in the Phase-2 subscribe flow (C1).

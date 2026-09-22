@@ -38,9 +38,11 @@ Both return **`ErrorOr<T>`**:
 | Feed's category does not exist | `NotFound` — `Category.NotFound` |
 
 **Validation** (`CreateCategoryRequestValidator`, `CreateFeedRequestValidator`, discovered by
-`AddValidatorsFromAssemblyContaining<Program>()`): required name; lengths mirroring the column limits (a test asserts
-they match the EF model); `FeedUrl` / `SiteUrl` / optional `ImageUrl` must be **absolute http(s) URLs** (so
-`javascript:`/`ftp:`/relative values are rejected); popularity ≥ 0.
+`AddValidatorsFromAssemblyContaining<Program>()`): required name; length limits taken straight from the entities'
+`*MaxLength` constants (`Category.NameMaxLength`, `Feed.UrlMaxLength`, …), which are also what the EF configuration and
+the forms' `maxlength` attributes use, so they cannot drift (`LimitsTests` guards constant ↔ column); `FeedUrl` /
+`SiteUrl` / optional `ImageUrl` must be **absolute http(s) URLs** (so `javascript:`/`ftp:`/relative values are
+rejected); popularity ≥ 0.
 
 The duplicate checks run before the insert; if a concurrent create still trips the unique index, the resulting
 `DbUpdateException` is re-checked and reported as the same `Conflict`, and anything else is rethrown.
@@ -57,8 +59,7 @@ so Identity's stores and the seeders are unchanged.
 
 - `CategoryServiceTests`, `FeedServiceTests` — real in-memory SQLite (`SqliteTestDatabase`, an
   `IDbContextFactory` over one kept-open connection): persistence + GUID v7 ids, trimming, blank → `null`,
-  validation errors, URL scheme rejection, conflicts ignoring case, unknown category, list ordering, feed counts,
-  validator limits vs. column limits.
+  validation errors, URL scheme rejection, conflicts ignoring case, unknown category, list ordering, feed counts.
 - `AdminPagesTests` — each admin page is routed and carries `[Authorize(Policy = "Admin")]`; anonymous requests are
   redirected to login with the `ReturnUrl`; a **signed-in admin** (seeded, signed in through the real login form)
   gets the pages rendered with the seeded catalogue.

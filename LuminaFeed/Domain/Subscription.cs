@@ -8,6 +8,11 @@ namespace LuminaFeed.Domain;
 /// </summary>
 public sealed class Subscription : EntityBase
 {
+    // Column limits: the single source for the EF configuration and (C1) the subscribe-dialog validator.
+    /// <summary>Matches ASP.NET Identity's AspNetUsers.Id key width.</summary>
+    public const int UserIdMaxLength = 450;
+    public const int SlackWebhookUrlMaxLength = 2048;
+
     /// <summary>FK to the Identity user (<see cref="ApplicationUser.Id"/>, a string key).</summary>
     public required string UserId { get; set; }
     public ApplicationUser User { get; set; } = null!;

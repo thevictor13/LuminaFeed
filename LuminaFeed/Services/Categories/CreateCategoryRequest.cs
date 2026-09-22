@@ -1,4 +1,5 @@
 using FluentValidation;
+using LuminaFeed.Domain;
 
 namespace LuminaFeed.Services.Categories;
 
@@ -7,13 +8,10 @@ public sealed record CreateCategoryRequest(string Name, string? Description);
 
 public sealed class CreateCategoryRequestValidator : AbstractValidator<CreateCategoryRequest>
 {
-    // Mirror the column limits in CategoryConfiguration (asserted by CategoryServiceTests).
-    public const int NameMaxLength = 100;
-    public const int DescriptionMaxLength = 1000;
-
     public CreateCategoryRequestValidator()
     {
-        RuleFor(r => r.Name).NotEmpty().MaximumLength(NameMaxLength);
-        RuleFor(r => r.Description).MaximumLength(DescriptionMaxLength);
+        // Length limits are the entity's own column limits, so they can't drift from the schema.
+        RuleFor(r => r.Name).NotEmpty().MaximumLength(Category.NameMaxLength);
+        RuleFor(r => r.Description).MaximumLength(Category.DescriptionMaxLength);
     }
 }

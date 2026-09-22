@@ -11,13 +11,13 @@ public sealed class FeedConfiguration : IEntityTypeConfiguration<Feed>
         builder.HasKey(f => f.Id);
         builder.Property(f => f.Id).ValueGeneratedNever();
 
-        builder.Property(f => f.Name).IsRequired().HasMaxLength(200);
-        builder.Property(f => f.FeedUrl).IsRequired().HasMaxLength(2048);
-        builder.Property(f => f.SiteUrl).IsRequired().HasMaxLength(2048);
-        builder.Property(f => f.ImageUrl).HasMaxLength(2048);
-        builder.Property(f => f.Description).HasMaxLength(1000);
-        builder.Property(f => f.ETag).HasMaxLength(512);
-        builder.Property(f => f.LastModified).HasMaxLength(256);
+        builder.Property(f => f.Name).IsRequired().HasMaxLength(Feed.NameMaxLength);
+        builder.Property(f => f.FeedUrl).IsRequired().HasMaxLength(Feed.UrlMaxLength);
+        builder.Property(f => f.SiteUrl).IsRequired().HasMaxLength(Feed.UrlMaxLength);
+        builder.Property(f => f.ImageUrl).HasMaxLength(Feed.UrlMaxLength);
+        builder.Property(f => f.Description).HasMaxLength(Feed.DescriptionMaxLength);
+        builder.Property(f => f.ETag).HasMaxLength(Feed.ETagMaxLength);
+        builder.Property(f => f.LastModified).HasMaxLength(Feed.LastModifiedMaxLength);
 
         builder.HasIndex(f => f.FeedUrl).IsUnique();
 

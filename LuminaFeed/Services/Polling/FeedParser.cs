@@ -92,13 +92,17 @@ public static partial class FeedParser
 
     private static ParsedFeedItem? ParseItem(XElement item, bool isAtom, Uri? baseUri)
     {
+        var guid = isAtom ? null : Element(item, "guid");
         var rawId = isAtom
             ? Text(item, "id")
-            : Text(item, "guid") ?? item.Attributes().FirstOrDefault(a => a.Name.LocalName == "about")?.Value.Trim();
+            : guid?.Value.Trim() ?? item.Attributes().FirstOrDefault(a => a.Name.LocalName == "about")?.Value.Trim();
 
         var rawLink = isAtom ? AtomLink(item) : Text(item, "link");
-        // An RSS <guid> is a permalink unless it says otherwise, so it can stand in for a missing <link>.
-        var link = HttpUrl(rawLink, baseUri) ?? (isAtom ? null : HttpUrl(rawId, baseUri: null));
+        // An RSS <guid> is a permalink unless it says otherwise (isPermaLink="false"), so it can stand in for a
+        // missing <link>; a non-permalink guid is just an id, whatever it looks like.
+        var guidIsPermalink = guid is not null
+            && !string.Equals((string?)guid.Attribute("isPermaLink"), "false", StringComparison.OrdinalIgnoreCase);
+        var link = HttpUrl(rawLink, baseUri) ?? (guidIsPermalink ? HttpUrl(rawId, baseUri: null) : null);
         if (link is null)
             return null;
 
@@ -124,11 +128,14 @@ public static partial class FeedParser
     /// are ignored (so <c>media:content</c> / <c>media:title</c> never shadow the real ones), and so are empty
     /// namesakes such as an <c>&lt;atom:link href="…"/&gt;</c> sitting before the RSS <c>&lt;link&gt;</c>.
     /// </summary>
-    private static string? Text(XElement parent, string localName) =>
+    private static string? Text(XElement parent, string localName) => Element(parent, localName)?.Value.Trim();
+
+    /// <summary>The first direct child with that local name that has text (see <see cref="Text"/>).</summary>
+    private static XElement? Element(XElement parent, string localName) =>
         parent.Elements()
-            .Where(e => e.Name.LocalName == localName && e.Name.NamespaceName != MediaNamespace)
-            .Select(e => e.Value.Trim())
-            .FirstOrDefault(value => value.Length > 0);
+            .FirstOrDefault(e => e.Name.LocalName == localName
+                                 && e.Name.NamespaceName != MediaNamespace
+                                 && e.Value.Trim().Length > 0);
 
     /// <summary>Atom carries links as attributes; prefer <c>rel="alternate"</c> (or no rel) over self/enclosure links.</summary>
     private static string? AtomLink(XElement entry)

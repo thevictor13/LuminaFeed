@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using ErrorOr;
-using LuminaFeed.Domain;
 using LuminaFeed.Services.Email;
 
 namespace LuminaFeed.Services.Notifications;
@@ -15,8 +14,6 @@ namespace LuminaFeed.Services.Notifications;
 public sealed class EmailNotificationService(IMailSender mailSender) : INotificationService
 {
     public const int SummaryMaxLength = 300;
-
-    private const string UnknownFeedName = "LuminaFeed";
 
     public NotificationChannel Channel => NotificationChannel.Email;
 
@@ -49,15 +46,17 @@ public sealed class EmailNotificationService(IMailSender mailSender) : INotifica
     /// <summary>Builds the digest. Everything that comes from a feed is HTML-encoded — titles, summaries and links are untrusted.</summary>
     internal static EmailMessage Compose(ArticleNotification notification)
     {
+        // Grouped by feed id (names are not unique), shown by name.
         var groups = notification.Articles
-            .GroupBy(FeedName)
-            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(a => a.FeedId)
+            .Select(g => (Name: g.First().FeedName, Articles: g.ToList()))
+            .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var subject = notification.Articles.Count == 1
-            ? $"New from {groups[0].Key}: {notification.Articles[0].Title}"
+            ? $"New from {groups[0].Name}: {notification.Articles[0].Title}"
             : groups.Count == 1
-                ? $"{notification.Articles.Count} new articles from {groups[0].Key}"
+                ? $"{notification.Articles.Count} new articles from {groups[0].Name}"
                 : $"{notification.Articles.Count} new articles from {groups.Count} feeds";
 
         var html = new StringBuilder();
@@ -65,14 +64,14 @@ public sealed class EmailNotificationService(IMailSender mailSender) : INotifica
         html.Append("<p>There is something new in the feeds you follow on LuminaFeed.</p>");
         html.Append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">");
 
-        foreach (var group in groups)
+        foreach (var (name, articles) in groups)
         {
             html.Append("<tr><td style=\"padding:16px 0 6px 0; font-family:Arial, sans-serif; font-size:17px; font-weight:bold; color:#111111; border-bottom:1px solid #e5e5e5;\">")
-                .Append(Encode(group.Key))
+                .Append(Encode(name))
                 .Append("</td></tr>");
-            text.AppendLine(group.Key).AppendLine(new string('-', Math.Min(group.Key.Length, 60)));
+            text.AppendLine(name).AppendLine(new string('-', Math.Min(name.Length, 60)));
 
-            foreach (var article in group)
+            foreach (var article in articles)
             {
                 var published = article.PublishedAt?.ToUniversalTime().ToString("d MMM yyyy HH:mm 'UTC'", CultureInfo.InvariantCulture);
                 var summary = Shorten(article.Summary);
@@ -108,10 +107,6 @@ public sealed class EmailNotificationService(IMailSender mailSender) : INotifica
             EmailLayout.Render(notification.Articles.Count == 1 ? "New article" : "New articles", html.ToString()),
             text.ToString());
     }
-
-    private static string FeedName(Article article) =>
-        // Feed is a navigation the caller is expected to populate; don't fail a delivery over a missing name.
-        string.IsNullOrWhiteSpace(article.Feed?.Name) ? UnknownFeedName : article.Feed.Name;
 
     private static string? Shorten(string? summary)
     {

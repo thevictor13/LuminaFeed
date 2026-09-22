@@ -3,6 +3,13 @@ namespace LuminaFeed.Domain;
 /// <summary>An admin-curated RSS/Atom feed belonging to a <see cref="Category"/>.</summary>
 public sealed class Feed : EntityBase
 {
+    // Column limits: the single source for the EF configuration, the request validators and the admin forms.
+    public const int NameMaxLength = 200;
+    public const int UrlMaxLength = 2048;
+    public const int DescriptionMaxLength = 1000;
+    public const int ETagMaxLength = 512;
+    public const int LastModifiedMaxLength = 256;
+
     public required string Name { get; set; }
 
     public Guid CategoryId { get; set; }

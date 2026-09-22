@@ -11,8 +11,10 @@ FluentValidation, and open a short-lived `ApplicationDbContext` per operation vi
   (`ICategoryService`, `IFeedService`). _(S1, S2)_
 - `Subscriptions/` — email-only subscribe / unsubscribe per user and feed (`ISubscriptionService`). _(S3)_
 - `Polling/` — the polling loop (`FeedPollingBackgroundService`), one polling pass (`IFeedPollingService`), the
-  HTTP fetcher (`IFeedFetcher`) and the RSS/Atom/RDF reader (`FeedParser`). _(S4)_
-- `Notifications/` — the `INotificationService` abstraction (`NotificationChannel`, `ArticleNotification`) and
-  `EmailNotificationService`, which emails each subscriber a digest of their new articles. _(S5)_
+  HTTP fetcher (`IFeedFetcher`) and the RSS/Atom/RDF reader (`FeedParser`). A pass returns `NewArticle` values (from
+  `Notifications/`), never tracked entities. _(S4)_
+- `Notifications/` — the `INotificationService` abstraction (`NotificationChannel`, `NewArticle`,
+  `ArticleNotification`) and `EmailNotificationService`, which emails each subscriber a digest of their new
+  articles. _(S5)_
 
 **Planned (not yet built):** `SlackNotificationService` (C2) and per-subscriber channel dispatch (C4).

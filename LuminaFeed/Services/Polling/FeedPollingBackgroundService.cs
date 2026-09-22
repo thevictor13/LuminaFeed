@@ -1,4 +1,3 @@
-using LuminaFeed.Domain;
 using LuminaFeed.Options;
 using LuminaFeed.Services.Notifications;
 using Microsoft.Extensions.Options;
@@ -80,7 +79,7 @@ public sealed class FeedPollingBackgroundService(
     /// <summary>One notification per subscriber per channel; a failing recipient or channel never blocks the rest.</summary>
     private async Task DispatchAsync(
         IReadOnlyList<INotificationService> notifiers,
-        IReadOnlyDictionary<string, IReadOnlyList<Article>> newArticlesByEmail,
+        IReadOnlyDictionary<string, IReadOnlyList<NewArticle>> newArticlesByEmail,
         CancellationToken cancellationToken)
     {
         if (notifiers.Count == 0)

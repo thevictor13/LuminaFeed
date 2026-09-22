@@ -181,6 +181,24 @@ public class FeedParserTests
         Assert.Equal("https://news.example.test/p/9", item.ExternalId);
     }
 
+    [Fact]
+    public void Parse_Rss_NonPermalinkGuid_DoesNotStandInForAMissingLink()
+    {
+        // isPermaLink="false" says the guid is only an identifier, even when it happens to look like a URL.
+        const string xml = """
+            <rss version="2.0"><channel>
+              <item><title>Id only</title><guid isPermaLink="false">https://ids.example.test/opaque/9</guid></item>
+              <item><title>Linked</title><guid isPermaLink="false">https://ids.example.test/opaque/10</guid><link>https://news.example.test/p/10</link></item>
+            </channel></rss>
+            """;
+
+        var item = Assert.Single(FeedParser.Parse(xml).Value);
+
+        Assert.Equal("Linked", item.Title);
+        Assert.Equal("https://news.example.test/p/10", item.Link);
+        Assert.Equal("https://ids.example.test/opaque/10", item.ExternalId);
+    }
+
     [Theory]
     [InlineData("<link>javascript:alert(1)</link>")]
     [InlineData("<link>ftp://news.example.test/file</link>")]

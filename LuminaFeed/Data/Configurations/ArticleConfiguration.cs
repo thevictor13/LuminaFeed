@@ -11,10 +11,10 @@ public sealed class ArticleConfiguration : IEntityTypeConfiguration<Article>
         builder.HasKey(a => a.Id);
         builder.Property(a => a.Id).ValueGeneratedNever();
 
-        builder.Property(a => a.ExternalId).IsRequired().HasMaxLength(1024);
-        builder.Property(a => a.Title).IsRequired().HasMaxLength(500);
-        builder.Property(a => a.Link).IsRequired().HasMaxLength(2048);
-        builder.Property(a => a.ImageUrl).HasMaxLength(2048);
+        builder.Property(a => a.ExternalId).IsRequired().HasMaxLength(Article.ExternalIdMaxLength);
+        builder.Property(a => a.Title).IsRequired().HasMaxLength(Article.TitleMaxLength);
+        builder.Property(a => a.Link).IsRequired().HasMaxLength(Article.UrlMaxLength);
+        builder.Property(a => a.ImageUrl).HasMaxLength(Article.UrlMaxLength);
 
         // Per-feed de-dup of source items.
         builder.HasIndex(a => new { a.FeedId, a.ExternalId }).IsUnique();

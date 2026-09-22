@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = AdminAuthorization.PolicyName)]
 @rendermode InteractiveServer
 
+@using LuminaFeed.Domain
 @using LuminaFeed.Services.Categories
 
 @inject ICategoryService CategoryService
@@ -23,7 +24,7 @@
 <EditForm Model="form" OnSubmit="CreateAsync" class="mb-4">
     <div class="mb-3">
         <label for="category-name" class="form-label">Name</label>
-        <InputText id="category-name" @bind-Value="form.Name" class="form-control" maxlength="@CreateCategoryRequestValidator.NameMaxLength"/>
+        <InputText id="category-name" @bind-Value="form.Name" class="form-control" maxlength="@Category.NameMaxLength"/>
     </div>
     <div class="mb-3">
         <label for="category-description" class="form-label">Description <span class="text-secondary">(optional)</span></label>

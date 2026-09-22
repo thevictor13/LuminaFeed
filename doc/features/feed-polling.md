@@ -25,12 +25,17 @@ FeedPollingBackgroundService ──every Polling:IntervalSeconds──▶ IFeedP
     document, failed save) is logged and skipped without costing the others their poll.
   - **De-dup** — candidates are de-duplicated within the document, then filtered against the stored
     `(FeedId, ExternalId)` rows; only unseen items are inserted. The same guid in two feeds is two articles.
-  - **Column fit** — title and external id are truncated to their column limits; an item whose link is too long is
-    dropped, and an over-long image URL is discarded (a truncated URL is a broken URL).
-  - **`LastPolledAt`** is stamped on **successful** polls only.
+  - **Column fit** — title and external id are truncated to the entity's own limits (`Article.TitleMaxLength`,
+    `Article.ExternalIdMaxLength`); an item whose link is too long is dropped, and an over-long image URL is discarded
+    (a truncated URL is a broken URL).
+  - **`LastPolledAt`** is stamped on **successful** polls only. Per-feed outcomes are logged at **Debug** (they fire
+    for every active feed every interval); the loop logs the pass summary at Information.
   - **Result** — the spec's dictionary keyed by **subscriber email address** (case-insensitive) → the new articles to
-    notify about, each with `Article.Feed` populated. Only subscriptions with `EmailEnabled` and a **confirmed** account
-    email are included; a subscriber of several feeds gets one combined list, newest first per feed.
+    notify about as **`NewArticle` values** (article id, feed id + name, title, link, summary, image, date — see
+    [Notifications](./notifications.md)), never the tracked entities. Only subscriptions with `EmailEnabled` and a
+    **confirmed** account email are included; a subscriber of several feeds gets one combined list, newest first per
+    feed. The key stays the email address; with per-subscriber channel dispatch (C4) the value grows into a
+    per-subscription digest (channels, Slack webhook, subscription id).
 - **First-poll cap** — the first successful poll of a feed finds its whole backlog "new". Everything is stored, but
   only the **newest `Polling:FirstPollNotificationCap` (default 5)** are reported (by publication date; undated items
   rank last). Later polls report every new article. `0` makes the first poll a silent baseline. Because a failed poll
@@ -43,8 +48,9 @@ FeedPollingBackgroundService ──every Polling:IntervalSeconds──▶ IFeedP
   followed here with the scheme **upgraded to https** (max 3 hops) — a fetch never leaves TLS.
 - **`FeedParser`** — a small, tolerant reader over `XDocument` for the three formats in the catalogue: **RSS 2.0**,
   **Atom 1.0**, **RDF / RSS 1.0**. Elements are matched by local name.
-  - `ExternalId` = RSS `<guid>` / Atom `<id>` / RDF `rdf:about`, else the link. An RSS guid permalink stands in for a
-    missing `<link>`; Atom prefers `rel="alternate"`; relative links resolve against the feed URL.
+  - `ExternalId` = RSS `<guid>` / Atom `<id>` / RDF `rdf:about`, else the link. An RSS guid stands in for a missing
+    `<link>` unless it says `isPermaLink="false"` (then it is only an id, however URL-like); Atom prefers
+    `rel="alternate"`; relative links resolve against the feed URL.
   - **Only absolute http(s) links and images are accepted** — an item without one is skipped, so `javascript:` /
     `data:` URLs can never reach a page or an email.
   - Summary (`description` / `content:encoded` / `summary` / `content`) becomes plain text: scripts/styles and tags
@@ -77,13 +83,14 @@ on the unique index (the loser's feed is logged and retried next tick).
 
 ## Tests
 
-`FeedParserTests` (RSS/Atom/RDF fixtures, guid/link fallbacks, relative links, non-http links and images, HTML and
-double-escaped summaries, truncation, date formats, malformed/non-feed XML, DOCTYPE + XXE probe, declared encoding,
-BOM), `HttpFeedFetcherTests` (body + headers, non-2xx, transport failure, timeout, caller cancellation, bad URL,
+`FeedParserTests` (RSS/Atom/RDF fixtures, guid/link fallbacks incl. `isPermaLink="false"`, relative links, non-http
+links and images, HTML and double-escaped summaries, truncation, date formats, malformed/non-feed XML, DOCTYPE + XXE
+probe, declared encoding, BOM), `HttpFeedFetcherTests` (body + headers, non-2xx, transport failure, timeout, caller cancellation, bad URL,
 oversize body, https-upgraded redirects, redirect loop, client/handler configuration), `FeedPollingServiceTests` (active
 feeds only, persistence + `LastPolledAt`, email-keyed result, de-dup across polls / within a document / per feed,
 first-poll cap by date, uncapped later polls, cap 0, failed first fetch keeps the cap, email-enabled + confirmed only,
-multi-feed subscriber, broken-feed isolation, cancellation, column fit), `FeedPollingBackgroundServiceTests`
+multi-feed subscriber, broken-feed isolation, cancellation, column fit; `LimitsTests` keeps the entity constants equal
+to the mapped columns), `FeedPollingBackgroundServiceTests`
 (immediate first pass, clean stop, keeps ticking after a throwing pass, fresh scope per pass), `OptionsTests`,
 `HostBootTests` (the loop is hosted and healthy). Host-booting tests swap in a `NoNetworkFeedFetcher`, so no test
 ever reaches a real publisher.

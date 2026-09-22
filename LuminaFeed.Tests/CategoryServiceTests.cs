@@ -60,8 +60,8 @@ public sealed class CategoryServiceTests : IDisposable
     public async Task CreateAsync_OverlongFields_ReturnOneValidationErrorEach()
     {
         var result = await CreateService().CreateAsync(new CreateCategoryRequest(
-            new string('n', CreateCategoryRequestValidator.NameMaxLength + 1),
-            new string('d', CreateCategoryRequestValidator.DescriptionMaxLength + 1)));
+            new string('n', Category.NameMaxLength + 1),
+            new string('d', Category.DescriptionMaxLength + 1)));
 
         Assert.True(result.IsError);
         Assert.All(result.Errors, e => Assert.Equal(ErrorType.Validation, e.Type));
@@ -103,15 +103,5 @@ public sealed class CategoryServiceTests : IDisposable
     public async Task ListAsync_EmptyDatabase_ReturnsEmpty()
     {
         Assert.Empty(await CreateService().ListAsync());
-    }
-
-    [Fact]
-    public void ValidatorLimits_MatchTheColumnLimits()
-    {
-        using var ctx = _db.CreateDbContext();
-        var entity = ctx.Model.FindEntityType(typeof(Category))!;
-
-        Assert.Equal(CreateCategoryRequestValidator.NameMaxLength, entity.FindProperty(nameof(Category.Name))!.GetMaxLength());
-        Assert.Equal(CreateCategoryRequestValidator.DescriptionMaxLength, entity.FindProperty(nameof(Category.Description))!.GetMaxLength());
     }
 }
