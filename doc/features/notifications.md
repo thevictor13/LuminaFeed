@@ -51,6 +51,10 @@ re-announced on the next tick. With Papercut running on `localhost:25` that dige
 
 ## Known limitations (deliberate, until Phase 2)
 
+- **Slack** preferences (`SlackEnabled` + `SlackWebhookUrl`) are captured and validated by the subscribe dialog
+  (C1 — see [Subscriptions](./subscriptions.md)), but Slack **delivery** is not wired yet: a Slack-only subscriber
+  receives nothing until `SlackNotificationService` lands in C2. Polling still keys its result to email-enabled
+  subscribers only.
 - Articles are stored **before** notifying, so a digest that fails to send (SMTP down) is **not retried** — those
   articles are no longer "new" on the next pass. (C4)
 - No unsubscribe link or `List-Unsubscribe` headers yet. (C5)

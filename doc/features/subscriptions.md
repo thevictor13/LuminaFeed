@@ -1,8 +1,13 @@
-# Feature: Subscriptions (S3 — email only)
+# Feature: Subscriptions (S3 + C1)
 
-A signed-in user can subscribe to a feed and receive its alerts **by email**. This is the walking-skeleton slice; the
-full flow — a dialog with email + Slack switches, Slack webhook validation/prefill, and per-channel unsubscribe —
-arrives with **C1 / C2 / C5**.
+A signed-in user manages, per feed, how they are alerted when it publishes something new: **email** and/or **Slack**,
+chosen in a dialog. **C1** turns the walking-skeleton one-click email subscribe (S3) into the spec's full flow —
+a dialog with two switches, a validated/prefilled Slack webhook, and **per-channel unsubscribe**.
+
+> **Slack delivery is C2.** C1 **captures and validates** the Slack channel preference (`SlackEnabled` +
+> `SlackWebhookUrl`) and persists it; the `SlackNotificationService` that actually posts to the webhook arrives with
+> C2. Until then a Slack-only subscription (email off) simply receives nothing yet — email keeps working, and polling
+> is unchanged (it still keys its result to email-enabled subscribers — see [Feed Polling](./feed-polling.md)).
 
 ## Behaviour (public list, `/`)
 
@@ -10,57 +15,81 @@ Each feed card carries a `SubscribeButton` (`Components/Shared/`):
 
 | Visitor | Button |
 |---|---|
-| Anonymous (treated as having no subscriptions) | **Subscribe** — a link to `Account/Login?ReturnUrl=<current page>`; the login page's *Register* link forwards the same `ReturnUrl`, so the visitor lands back here after signing in or registering. On the register path the `ReturnUrl` rides along in the confirmation email's link, and the `ConfirmEmail` page's **Continue** button leads to login with the same `ReturnUrl` (only a local path is honoured; anything off-site falls back to a plain login link). |
-| Signed in, not subscribed | **Subscribe** (primary) — creates the subscription with `EmailEnabled = true`. |
-| Signed in, subscribed | **Unsubscribe** in **red** — removes the subscription. |
+| Anonymous (treated as having no subscriptions) | **Subscribe** — a link to `Account/Login?ReturnUrl=<current page>`; the login page's *Register* link forwards the same `ReturnUrl`, so the visitor lands back here after signing in or registering (on the register path the `ReturnUrl` also rides the confirmation email and the confirm page's **Continue** button; only a local path is honoured). |
+| Signed in, not subscribed | **Subscribe** (primary) — opens the channel dialog. |
+| Signed in, subscribed | **Unsubscribe** in **red** — opens the *same* dialog, reflecting the current channels. |
 
-The email address is always the account's registered, verified address (`RequireConfirmedAccount`); there is nowhere
-to enter another one.
+Both signed-in buttons open one shared dialog (a "unified dialog": the red state manages channels rather than
+deleting silently). The user id always comes from the **authenticated principal** (`ClaimTypes.NameIdentifier`),
+never from client input; the account's verified email address (from the principal) is shown in the dialog as the
+fixed email target. The card button's red/primary state flips from the dialog's result via an `OnChanged` callback.
 
-`Home.razor` runs with `@rendermode InteractiveServer`, so a click updates just that button (it is disabled while its
-call is in flight, and further clicks are ignored meanwhile). The user id is read from the **authenticated principal**
-(`ClaimTypes.NameIdentifier`) — never from client input. The user's subscribed ids are carried from the prerender into
-the circuit with `[PersistentState]` (so the buttons don't flip while the circuit starts); the catalogue itself is
-**re-queried** on the interactive render — persisted state travels back to the server inside the circuit-start
-message, which SignalR caps at 32 KB, and persisting 115 feed summaries (~87 KB) killed every circuit at start, leaving
-the page static (found in manual testing after P1.R; `PublicPagesTests` now keeps the payload under 8 KB). Service
-errors surface in the shared `ErrorList` alert at the top of the page (a card far down the list may
-have to scroll up to see it — revisited with the card paging of B1). Every button carries an accessible name
-(`aria-label="Subscribe to <feed>"` / `"Unsubscribe from <feed>"`), since a page full of otherwise identical buttons
-is unusable with a screen reader.
+## The dialog (`Components/Shared/SubscribeDialog.razor`)
 
-> The minimal **Unsubscribe** is included in the skeleton on purpose: once polling and notifications are on, a test
-> subscriber would otherwise be emailed forever. It deletes the whole row; C5 refines this into per-channel control.
+A **Bootstrap-styled modal driven entirely by Blazor** — rendered with `@if (Visible)` (`.modal.show` +
+`.modal-backdrop`), **no Bootstrap JS bundle and no JS interop**, so it works in the circuit and under bUnit alike
+(bUnit does not run `blazor.web.js`). On open it loads the current state via `GetSubscriptionForEditAsync`.
+
+- **Email switch** — a Bootstrap `form-switch`; defaults **on** for a new subscription. Email always targets the
+  account's registered, verified address (`RequireConfirmedAccount`); there is nowhere to enter another one.
+- **Slack switch** — when on, a **webhook URL input** appears, **pre-populated** with the user's previous webhook
+  (`LastOrDefault` — this subscription's own value, else the user's most recently created webhook anywhere).
+- **Save** — validated server-side (see below); on success the dialog closes and the card reflects the new state.
+- **Per-channel unsubscribe** — turn one switch **off** and Save (at least one channel must stay on).
+- **Unsubscribe** (red, only for an existing subscription) — removes the whole subscription (both channels).
+- Errors surface in the dialog's `ErrorList` (`.alert-danger`); Save/Unsubscribe are disabled while a call is in flight.
+
+## Validation (`Services/Subscriptions/SaveSubscriptionRequest.cs`)
+
+`SaveSubscriptionRequest(EmailEnabled, SlackEnabled, SlackWebhookUrl?)` + a FluentValidation validator
+(auto-registered by `AddValidatorsFromAssemblyContaining<Program>()`), run **inside the service** and surfaced through
+the same `ErrorList` pattern as the admin forms:
+
+- **At least one channel** must be enabled (else *"Enable at least one notification channel, or unsubscribe."*).
+- When **Slack is on**, the webhook is **required**, `≤ Subscription.SlackWebhookUrlMaxLength` (2048), and must be a
+  genuine Slack incoming webhook — an absolute **https** URL beginning with `Subscription.SlackWebhookUrlPrefix`
+  (`https://hooks.slack.com/services`), the single source for that check. This enforces the
+  `SlackEnabled ⇒ SlackWebhookUrl` invariant the `Subscription` entity documents but does not enforce.
 
 ## Service (`Services/Subscriptions/ISubscriptionService` → `SubscriptionService`)
 
-- `GetSubscribedFeedIdsAsync(userId)` — the user's feed ids; empty for a blank/unknown user.
-- `SubscribeByEmailAsync(userId, feedId)` — **idempotent**. Creates the `(UserId, FeedId)` row with
-  `EmailEnabled = true`; if the row exists it only (re-)enables email and leaves any Slack settings untouched. A
-  concurrent duplicate insert that trips the unique index is treated as success (the desired state already holds).
-- `UnsubscribeAsync(userId, feedId)` — deletes that user's row for that feed (`ExecuteDelete`).
+- `GetSubscribedFeedIdsAsync(userId)` — the user's feed ids (for the card red/primary state); empty for a blank/unknown user.
+- `GetSubscriptionForEditAsync(userId, feedId)` — the dialog's opening state: whether a subscription exists, the
+  current switches (defaults email-on/Slack-off when new), and the webhook to prefill. The `LastOrDefault` webhook is
+  chosen **client-side** (a user has few subscriptions, and SQLite cannot `ORDER BY` a `DateTimeOffset`).
+- `SaveSubscriptionAsync(userId, feedId, request)` — a **validated upsert**: creates the `(UserId, FeedId)` row or
+  updates its channels. When Slack is turned off and no webhook is supplied, the stored webhook is **preserved** (the
+  invariant is one-directional), so the `LastOrDefault` prefill survives. A concurrent duplicate insert that trips the
+  unique index is recovered by re-loading the winning row and applying the chosen channels.
+- `SubscribeByEmailAsync(userId, feedId)` — idempotent email-only convenience (still used to arrange email
+  subscriptions in tests and by the walking-skeleton path).
+- `UnsubscribeAsync(userId, feedId)` — removes the row entirely (the dialog's red Unsubscribe).
 
 | Situation | Error |
 |---|---|
 | Blank user id | `Validation` — `Subscription.UserRequired` |
+| No channel / bad or missing Slack webhook | `Validation` — coded by the request property (`EmailEnabled` / `SlackWebhookUrl`) |
 | Unknown feed | `NotFound` — `Feed.NotFound` |
 | Unknown user | `NotFound` — `Subscription.UserNotFound` |
-| Unsubscribing when not subscribed | `NotFound` — `Subscription.NotSubscribed` (the page treats it as already done) |
+| Unsubscribing when not subscribed | `NotFound` — `Subscription.NotSubscribed` (the dialog treats it as already done) |
+
+`Home.razor` runs with `@rendermode InteractiveServer`; the user's subscribed ids ride the prerender→circuit hand-off
+in a small `[PersistentState]` `HashSet<Guid>` (the catalogue is re-queried, never persisted — SignalR caps the
+circuit-start message at 32 KB; `PublicPagesTests` keeps the payload small). Every card button carries an accessible
+name (`aria-label="Subscribe to <feed>"` / `"Unsubscribe from <feed>"`); the dialog's own Unsubscribe uses its visible
+text within the feed-titled dialog, so the two never collide.
 
 ## Tests
 
-- `SubscriptionServiceTests` — persisted email-only row (GUID v7), idempotent double subscribe, re-enabling email
-  keeps Slack settings, unknown feed/user, blank user, unsubscribe touches only that user + feed, not-subscribed,
-  re-subscribe after unsubscribe, per-user isolation of the id list.
-- `PublicPagesTests` — anonymous: all cards offer *Subscribe* as a login link with `ReturnUrl=%2F` and no red
-  button; signed in (through the real login form) with one subscription: exactly one red *Unsubscribe*, the rest
-  *Subscribe* buttons, no login links, and the persisted-state payload is present.
-- `HomePageComponentTests` (bUnit, real services on in-memory SQLite) — the **interactive path** the page tests can't
-  reach: the anonymous login link; a click on *Subscribe* turns the button into a red *Unsubscribe* and persists the
-  row; a click on *Unsubscribe* reverts it and deletes the row; the button is disabled while the call is in flight
-  (a gated service double); a failing service shows its message in the alert and leaves the button unchanged.
-- `RegistrationFlowTests` — the register path end to end through the real host: the real Register form posts, the
-  recorded confirmation email carries a working link (encoded once in the HTML part, raw in the text part), opening
-  it confirms the account and offers *Continue* → `Account/Login?ReturnUrl=%2F`, and the confirmed account can sign
-  in. An off-site `ReturnUrl` is ignored; a mangled `code` yields the error message, not a 500.
+- `SubscriptionServiceTests` — the email-only path (S3) plus C1: `SaveSubscriptionAsync` create/update, per-channel
+  off keeps the row, webhook retention when Slack is switched off, and every validation branch (no channel, missing/
+  non-Slack/over-length webhook); `GetSubscriptionForEditAsync` defaults, stored state, `LastOrDefault` prefill, and
+  not-found/anonymous. Validators are exercised **through** the service's `ErrorOr` result.
+- `SubscribeDialogComponentTests` (bUnit, real services on in-memory SQLite) — the interactive dialog: switches, the
+  revealed/prefilled webhook, a bad webhook rejected in the dialog, a valid one saved, per-channel unsubscribe, the
+  red Unsubscribe removal, the in-flight disable (a gated double) and a failing service's error.
+- `HomePageComponentTests` (bUnit) — the card→dialog integration: the anonymous login link; Subscribe opens the
+  dialog; saving flips the card to red Unsubscribe and persists; the dialog's Unsubscribe reverts it; Cancel changes nothing.
+- `PublicPagesTests` — anonymous: all cards offer *Subscribe* as a login link with `ReturnUrl=%2F` and no red button;
+  signed in with one subscription (arranged via `SubscribeByEmailAsync`): exactly one red *Unsubscribe*.
 - `HostBootTests` — `ISubscriptionService` resolves from the real DI graph.

@@ -152,3 +152,30 @@ Minimal CSS only if needed (Bootstrap's `.modal.show`/`.modal-backdrop` cover it
 - Slack **sending** (`SlackNotificationService`, webhook dispatch, poll-result value shape) — **C2**.
 - Article/Outlook email template hardening + `SiteOptions.PublicBaseUrl` — **C3**.
 - RFC 8058 one-click email unsubscribe + `List-Unsubscribe` headers + unsubscribe page — **C5**.
+
+---
+
+## Outcome (2026-09-22)
+
+Done and committed in four steps (C1.0 plan, C1.1 service, C1.2 UI, C1.3 docs). **287 tests pass, 0 build warnings.**
+
+- **Service (C1.1)** — `SaveSubscriptionRequest` (record + validator: ≥1 channel; a genuine Slack webhook when Slack is
+  on, bounded by `Subscription.SlackWebhookUrlMaxLength` and the new `Subscription.SlackWebhookUrlPrefix`).
+  `SubscriptionService` gained `SaveSubscriptionAsync` (validated upsert, webhook kept when Slack is switched off, the
+  unique-index race recovered by re-loading the winner) and `GetSubscriptionForEditAsync` (dialog state + prefill).
+- **UI (C1.2)** — `SubscribeDialog.razor` (Blazor-driven Bootstrap modal, no JS interop, fully bUnit-testable);
+  `SubscribeButton` now opens the dialog; `Home` hosts one dialog and flips the card's red state from `OnChanged`.
+- **Deviation from the plan:** the `LastOrDefault` webhook prefill is ordered **client-side** — SQLite's EF provider
+  throws `NotSupportedException` on `ORDER BY` over a `DateTimeOffset` (a user has few subscriptions, so this is cheap;
+  the same constraint will shape B4's article ordering). Also: string-typed component parameters needed the `@`
+  prefix (`FeedName="@openFeed.Name"`, `UserId="@userId"`) — without it Razor passes the literal text, which first
+  sent the dialog the literal `"userId"` and failed the save with `UserNotFound` (caught in the browser check below).
+- **Browser verification** — the Chrome extension was not connected, so an installed-Chrome **PuppeteerSharp** probe
+  (scratchpad only, no browser packages in the project, no Chromium download) signed in as the seeded admin and ran
+  the whole flow against a private instance (port 5099, polling off, dead SMTP port): the circuit is interactive
+  (Subscribe opens the dialog), Slack reveals the prefilled webhook, a non-Slack URL is rejected in the dialog, a
+  valid webhook saves, per-channel unsubscribe (email off) keeps the subscription, and the dialog's Unsubscribe
+  reverts the card — **0 console errors, 0 page errors**.
+
+Not done here (by design): Slack **delivery** (C2) — a Slack-only subscription receives nothing yet; polling still
+notifies email-enabled subscribers only.
