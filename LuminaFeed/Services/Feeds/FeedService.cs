@@ -42,6 +42,40 @@ public sealed class FeedService(
             .Select(g => new CategoryFeeds(g.Key.CategoryId, g.Key.CategoryName, [.. g]))];
     }
 
+    public async Task<FeedDetail?> GetFeedDetailAsync(
+        Guid feedId, int maxArticles, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        var feed = await db.Feeds
+            .AsNoTracking()
+            .Where(f => f.Id == feedId)
+            .Select(f => new FeedSummary(
+                f.Id, f.Name, f.CategoryId, f.Category.Name, f.FeedUrl, f.SiteUrl, f.ImageUrl, f.Description, f.Popularity))
+            .SingleOrDefaultAsync(cancellationToken);
+        if (feed is null)
+            return null;
+
+        // Newest first, dateless last, FetchedAt breaking ties. The sort is done in memory: SQLite/EF cannot
+        // ORDER BY a DateTimeOffset, and the notification path already sorts articles client-side. LINQ-to-Objects
+        // orders a null key last under OrderByDescending, so dateless articles fall to the bottom. Bringing the
+        // feed's rows into memory is acceptable at current volumes (article retention is a separate, deferred job).
+        var rows = await db.Articles
+            .AsNoTracking()
+            .Where(a => a.FeedId == feedId)
+            .Select(a => new { a.Id, a.Title, a.Link, a.Summary, a.ImageUrl, a.PublishedAt, a.FetchedAt })
+            .ToListAsync(cancellationToken);
+
+        var articles = rows
+            .OrderByDescending(a => a.PublishedAt)
+            .ThenByDescending(a => a.FetchedAt)
+            .Take(maxArticles)
+            .Select(a => new ArticleSummary(a.Id, a.Title, a.Link, a.Summary, a.ImageUrl, a.PublishedAt))
+            .ToList();
+
+        return new FeedDetail(feed, articles);
+    }
+
     public async Task<ErrorOr<FeedSummary>> CreateAsync(
         CreateFeedRequest request, CancellationToken cancellationToken = default)
     {

@@ -1,0 +1,31 @@
+@using LuminaFeed.Services.Feeds
+
+@* An article on a feed's page (B4): image, title (linking to the article) and the first paragraphs — each subject
+   to availability. Everything comes from an untrusted feed; the summary is already plain text (the parser strips
+   markup) and links/images are validated absolute http(s), and Blazor auto-encodes @expr, so nothing here needs
+   manual encoding (and must never use MarkupString). *@
+<div class="card h-100 article-card">
+    @if (!string.IsNullOrEmpty(Article.ImageUrl))
+    {
+        <img src="@Article.ImageUrl" class="card-img-top article-card-image" alt="" loading="lazy" referrerpolicy="no-referrer"/>
+    }
+    <div class="card-body d-flex flex-column">
+        <h2 class="card-title h6">
+            <a href="@Article.Link" target="_blank" rel="noopener noreferrer">@Article.Title</a>
+        </h2>
+        @if (Article.PublishedAt is { } published)
+        {
+            <p class="card-subtitle small text-secondary mb-2">
+                <time datetime="@published.ToString("o")">@published.ToString("d MMM yyyy")</time>
+            </p>
+        }
+        @if (!string.IsNullOrEmpty(Article.Summary))
+        {
+            <p class="card-text small">@Article.Summary</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ArticleSummary Article { get; set; } = default!;
+}

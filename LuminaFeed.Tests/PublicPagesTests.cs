@@ -1,10 +1,12 @@
 using System.Net;
 using LuminaFeed.Data;
 using LuminaFeed.Data.Seed;
+using LuminaFeed.Domain;
 using LuminaFeed.Services.Feeds;
 using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LuminaFeed.Tests;
@@ -165,6 +167,79 @@ public sealed class PublicPagesTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         using var response = await client.GetAsync(route);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // --- B4: the feed detail page ------------------------------------------------------------------
+
+    [Fact]
+    public async Task Home_EveryVisibleCard_LinksToItsFeedPage()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/");
+
+        // Each visible card carries a "View articles" link to its feed page (B4).
+        Assert.Equal(VisibleCards, CountOf(html, ">View articles</a>"));
+    }
+
+    [Fact]
+    public async Task FeedPage_ShowsTheFeed_AndItsArticles()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+        Guid feedId;
+        string feedName;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var feed = (await scope.ServiceProvider.GetRequiredService<IFeedService>().ListByCategoryAsync())[0].Feeds[0];
+            feedId = feed.Id;
+            feedName = feed.Name;
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Articles.Add(new Article
+            {
+                FeedId = feedId,
+                ExternalId = "probe-1",
+                Title = "Probe Headline",
+                Link = "https://articles.example.test/probe-1",
+                PublishedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var html = await client.GetStringAsync($"/feed/{feedId}");
+
+        // The name is rendered with Blazor's auto-encoding (e.g. an em-dash becomes a numeric entity), so match
+        // the same encoding rather than the raw string.
+        Assert.Contains(System.Text.Encodings.Web.HtmlEncoder.Default.Encode(feedName), html);
+        Assert.Contains("Probe Headline", html);
+        Assert.Contains("article-card", html);
+        // A single-bool persisted state keeps the circuit-start payload tiny.
+        Assert.InRange(PersistedStateBytes(html), 0, PersistedStateBudget);
+    }
+
+    [Fact]
+    public async Task FeedPage_UnknownButValidId_ShowsNotFound()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+
+        using var response = await client.GetAsync($"/feed/{Guid.Empty}");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Feed not found", html);
+    }
+
+    [Fact]
+    public async Task FeedPage_NonGuidRoute_Is404()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync("/feed/not-a-guid");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

@@ -75,8 +75,10 @@ the `FeedOrder` enum and the pure `FeedOrdering.Sort` / `FeedOrdering.Label` hel
 ## Card (`LuminaFeed/Components/Shared/FeedCard.razor`)
 
 Shows the feed's **image when it has one** (`ImageUrl`, lazy-loaded, no referrer, letterboxed via scoped CSS), its
-name, its description when present, and a **Visit site** button (`SiteUrl`, new tab, `rel="noopener noreferrer"`).
-An `Actions` render fragment lets pages add buttons next to it (used by the subscribe button).
+name, its description when present, a **View articles** button (internal, `feed/{id}`, `aria-label="View {name}
+articles"`, → the [feed page](./feed-page.md)) and a **Visit site** button (`SiteUrl`, new tab,
+`rel="noopener noreferrer"`). An `Actions` render fragment lets pages add buttons next to them (used by the subscribe
+button), so a card carries three buttons: View articles, Visit site and Subscribe.
 
 ## Service (`IFeedService.ListByCategoryAsync`)
 

@@ -9,6 +9,7 @@ using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
+using Feed = LuminaFeed.Domain.Feed;
 
 namespace LuminaFeed.Tests;
 

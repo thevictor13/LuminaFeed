@@ -1,0 +1,158 @@
+@page "/feed/{FeedId:guid}"
+@rendermode InteractiveServer
+
+@using System.Security.Claims
+@using LuminaFeed.Services.Feeds
+@using LuminaFeed.Services.Subscriptions
+
+@inject IFeedService FeedService
+@inject ISubscriptionService SubscriptionService
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(detail?.Feed.Name ?? "Feed") — LuminaFeed</PageTitle>
+
+<p><a href="/">&larr; Feeds</a></p>
+
+<ErrorList Messages="errors"/>
+
+@if (!loaded)
+{
+    <p><em>Loading…</em></p>
+}
+else if (detail is null)
+{
+    <h1>Feed not found</h1>
+    <p>Sorry, that feed does not exist. <a href="/">Back to all feeds</a>.</p>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
+        <div>
+            <h1 class="mb-1">@detail.Feed.Name</h1>
+            <p class="text-secondary mb-0">@detail.Feed.CategoryName</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 pt-1">
+            <a href="@detail.Feed.SiteUrl" class="btn btn-outline-secondary" target="_blank" rel="noopener noreferrer">Visit site</a>
+            <SubscribeButton FeedName="@detail.Feed.Name"
+                             IsAuthenticated="@(userId is not null)"
+                             IsSubscribed="@(Subscribed == true)"
+                             Busy="busy"
+                             LoginUrl="@loginUrl"
+                             OnToggle="ToggleSubscriptionAsync"/>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(detail.Feed.Description))
+    {
+        <p class="lead">@detail.Feed.Description</p>
+    }
+
+    <hr/>
+
+    @if (detail.Articles.Count == 0)
+    {
+        <p>No articles have been fetched for this feed yet.</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            @foreach (var article in detail.Articles)
+            {
+                <div class="col" @key="article.Id">
+                    <ArticleCard Article="article"/>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    // The feed page shows the newest articles; there is no per-page "more" (the spec caps only the main view).
+    private const int ArticleLimit = 50;
+
+    [Parameter] public Guid FeedId { get; set; }
+
+    private string? userId;
+    private string loginUrl = "Account/Login";
+    private bool busy;
+    private bool loaded;
+    private Guid? loadedFeedId;
+    private IReadOnlyList<string> errors = [];
+
+    private FeedDetail? detail;
+
+    // Whether the user is subscribed to THIS feed. Persisted across the prerender → circuit hand-off so the button
+    // does not flicker Subscribe→Unsubscribe on the interactive render; it is a single bool, so the circuit-start
+    // payload stays tiny (the articles are re-queried, never persisted).
+    [PersistentState] public bool? Subscribed { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The id always comes from the authenticated principal — never from anything the client sends.
+        if (AuthenticationState is not null)
+        {
+            var user = (await AuthenticationState).User;
+            userId = user.Identity?.IsAuthenticated == true ? user.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Anonymous visitors are sent to log in and returned here afterwards.
+        loginUrl = NavigationManager.GetUriWithQueryParameters(
+            "Account/Login",
+            new Dictionary<string, object?> { ["ReturnUrl"] = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri) });
+
+        if (loadedFeedId == FeedId)
+            return;
+
+        var firstLoad = loadedFeedId is null;
+        loadedFeedId = FeedId;
+        loaded = false;
+        detail = await FeedService.GetFeedDetailAsync(FeedId, ArticleLimit);
+        loaded = true;
+
+        // On the first load of this instance, honour a persisted value (no flicker across the hand-off); on a
+        // later navigation to a different feed, recompute from scratch.
+        if (!firstLoad)
+            Subscribed = null;
+        Subscribed = detail is null
+            ? null
+            : Subscribed ?? (await SubscriptionService.GetSubscribedFeedIdsAsync(userId)).Contains(FeedId);
+    }
+
+    private async Task ToggleSubscriptionAsync()
+    {
+        if (userId is null || busy || detail is null)
+            return;
+
+        busy = true;
+        try
+        {
+            errors = [];
+            if (Subscribed == true)
+            {
+                var result = await SubscriptionService.UnsubscribeAsync(userId, FeedId);
+                // Already gone (e.g. removed in another tab) is the state the user asked for.
+                if (!result.IsError || result.FirstError.Code == SubscriptionErrors.NotSubscribed.Code)
+                    Subscribed = false;
+                else
+                    errors = [.. result.Errors.Select(e => e.Description)];
+            }
+            else
+            {
+                var result = await SubscriptionService.SubscribeByEmailAsync(userId, FeedId);
+                if (!result.IsError)
+                    Subscribed = true;
+                else
+                    errors = [.. result.Errors.Select(e => e.Description)];
+            }
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

@@ -441,4 +441,99 @@ public sealed class FeedServiceTests : IDisposable
         Assert.Equal(ErrorType.NotFound, result.FirstError.Type);
         Assert.Equal("Feed.NotFound", result.FirstError.Code);
     }
+
+    // --- B4: the feed page's feed + latest articles ----------------------------------------------
+
+    private static readonly DateTimeOffset Jan1 = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    private Article AddArticle(Guid feedId, string externalId, DateTimeOffset? publishedAt,
+        string? summary = null, string? imageUrl = null)
+    {
+        using var ctx = _db.CreateDbContext();
+        var article = new Article
+        {
+            FeedId = feedId,
+            ExternalId = externalId,
+            Title = externalId,
+            Link = $"https://articles.test/{externalId}",
+            Summary = summary,
+            ImageUrl = imageUrl,
+            PublishedAt = publishedAt,
+        };
+        ctx.Articles.Add(article);
+        ctx.SaveChanges();
+        return article;
+    }
+
+    [Fact]
+    public async Task GetFeedDetailAsync_OrdersNewestFirst_WithDatelessLast_AndExcludesOtherFeeds()
+    {
+        var category = _db.AddCategory("World News");
+        var feed = _db.AddFeed(category.Id, "BBC News");
+        var other = _db.AddFeed(category.Id, "Sky News");
+        AddArticle(feed.Id, "jan1", Jan1);
+        AddArticle(feed.Id, "jan3", Jan1.AddDays(2));
+        AddArticle(feed.Id, "jan2", Jan1.AddDays(1));
+        AddArticle(feed.Id, "dateless", publishedAt: null);
+        AddArticle(other.Id, "elsewhere", Jan1.AddDays(10));
+
+        var detail = await CreateService().GetFeedDetailAsync(feed.Id, maxArticles: 10);
+
+        Assert.NotNull(detail);
+        Assert.Equal(feed.Id, detail!.Feed.Id);
+        Assert.Equal("World News", detail.Feed.CategoryName);
+        // Newest published first; the dateless article sorts last; the other feed's article is not included.
+        Assert.Equal(["jan3", "jan2", "jan1", "dateless"], detail.Articles.Select(a => a.Title));
+    }
+
+    [Fact]
+    public async Task GetFeedDetailAsync_HonoursTheCap_KeepingTheNewest()
+    {
+        var category = _db.AddCategory();
+        var feed = _db.AddFeed(category.Id, "BBC News");
+        AddArticle(feed.Id, "jan1", Jan1);
+        AddArticle(feed.Id, "jan3", Jan1.AddDays(2));
+        AddArticle(feed.Id, "jan2", Jan1.AddDays(1));
+
+        var detail = await CreateService().GetFeedDetailAsync(feed.Id, maxArticles: 2);
+
+        Assert.NotNull(detail);
+        Assert.Equal(["jan3", "jan2"], detail!.Articles.Select(a => a.Title));
+    }
+
+    [Fact]
+    public async Task GetFeedDetailAsync_MapsArticleFields()
+    {
+        var category = _db.AddCategory();
+        var feed = _db.AddFeed(category.Id, "BBC News");
+        AddArticle(feed.Id, "story", Jan1, summary: "First paragraph.", imageUrl: "https://img.test/a.png");
+
+        var detail = await CreateService().GetFeedDetailAsync(feed.Id, maxArticles: 10);
+
+        var article = Assert.Single(detail!.Articles);
+        Assert.Equal("story", article.Title);
+        Assert.Equal("https://articles.test/story", article.Link);
+        Assert.Equal("First paragraph.", article.Summary);
+        Assert.Equal("https://img.test/a.png", article.ImageUrl);
+        Assert.Equal(Jan1, article.PublishedAt);
+    }
+
+    [Fact]
+    public async Task GetFeedDetailAsync_FeedWithoutArticles_ReturnsTheFeedAndAnEmptyList()
+    {
+        var category = _db.AddCategory();
+        var feed = _db.AddFeed(category.Id, "BBC News");
+
+        var detail = await CreateService().GetFeedDetailAsync(feed.Id, maxArticles: 10);
+
+        Assert.NotNull(detail);
+        Assert.Equal(feed.Id, detail!.Feed.Id);
+        Assert.Empty(detail.Articles);
+    }
+
+    [Fact]
+    public async Task GetFeedDetailAsync_UnknownFeed_ReturnsNull()
+    {
+        Assert.Null(await CreateService().GetFeedDetailAsync(Guid.CreateVersion7(), maxArticles: 10));
+    }
 }

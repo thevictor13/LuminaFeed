@@ -1,0 +1,5 @@
+.article-card-image {
+    height: 10rem;
+    object-fit: cover;
+    background-color: #f8f9fa;
+}
