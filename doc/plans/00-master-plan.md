@@ -66,6 +66,8 @@ subscribes → polling fetches new articles → the user receives an email. Runn
 
 ✅ **Met** — covered end to end through the real host by `WalkingSkeletonTests`, and exercised once against live publishers (RSS, Atom and RDF). Deliberate skeleton gaps handed to Phase 2: no retry of a failed digest and no conditional GETs (C4), no unsubscribe link/headers (C5), whole-row unsubscribe only (C1/C5), New Scientist answers 406 to .NET's HTTP stack (C4).
 
+- [ ] 🗂 **P1.R — Phase 1 review & remediation.** Senior architecture review of S1–S5 and the fixes it surfaced: the double-encoded Identity confirmation links (self-registration could never be confirmed), the register-path return URL, the idle-feed catch-up cap, parser input bounds, a `NewArticle` DTO at the notification boundary, entity-owned column limits, the polling loop removed from host tests, bUnit component tests for the interactive path, and the doc re-baseline below. _(after S5)_ — see [`P1.R-phase-1-review-remediation.md`](./P1.R-phase-1-review-remediation.md).
+
 ---
 
 ## Phase 2 — Broaden (parallel tracks)
