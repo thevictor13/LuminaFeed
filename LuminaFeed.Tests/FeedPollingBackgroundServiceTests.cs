@@ -4,6 +4,7 @@ using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace LuminaFeed.Tests;
 
@@ -53,34 +54,39 @@ public class FeedPollingBackgroundServiceTests
         Guid.CreateVersion7(), Guid.Empty, "Feed", title, "https://articles.example.test/" + title,
         Summary: null, ImageUrl: null, PublishedAt: null);
 
-    private static (FeedPollingBackgroundService Service, ListLogger<FeedPollingBackgroundService> Logger, ServiceProvider Provider)
-        Create(IFeedPollingService polling, int intervalSeconds = 3600, params INotificationService[] notifiers)
+    // The loop's clock is faked, so the interval tests advance time instead of waiting for it; the timeouts on
+    // WaitForCallsAsync are only a safety net against a hang.
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+
+    private static (FeedPollingBackgroundService Service, ListLogger<FeedPollingBackgroundService> Logger, ServiceProvider Provider, FakeTimeProvider Clock)
+        Create(IFeedPollingService polling, int intervalSeconds = 60, params INotificationService[] notifiers)
     {
         var services = new ServiceCollection().AddScoped(_ => polling);
         foreach (var notifier in notifiers)
             services.AddSingleton(notifier);
         var provider = services.BuildServiceProvider();
         var logger = new ListLogger<FeedPollingBackgroundService>();
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 9, 21, 12, 0, 0, TimeSpan.Zero));
         var service = new FeedPollingBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Microsoft.Extensions.Options.Options.Create(new PollingOptions { IntervalSeconds = intervalSeconds }),
-            TimeProvider.System,
+            clock,
             logger);
-        return (service, logger, provider);
+        return (service, logger, provider, clock);
     }
 
     [Fact]
     public async Task StartAsync_PollsImmediately_ThenStopsCleanly()
     {
         var polling = new ScriptedPollingService(_ => Nothing);
-        var (service, logger, provider) = Create(polling);
+        var (service, logger, provider, _) = Create(polling);
         using var disposeProvider = provider;
 
         await service.StartAsync(CancellationToken.None);
-        await polling.WaitForCallsAsync(1, TimeSpan.FromSeconds(10));
+        await polling.WaitForCallsAsync(1, Patience);
         await service.StopAsync(CancellationToken.None);
 
-        // An hour-long interval: only the startup pass ran, and shutdown wasn't treated as a failure.
+        // Time never advanced: only the startup pass ran, and shutdown wasn't treated as a failure.
         Assert.Equal(1, polling.Calls);
         Assert.True(service.ExecuteTask!.IsCompletedSuccessfully);
         Assert.DoesNotContain(logger.Entries, e => e.Level >= LogLevel.Error);
@@ -91,14 +97,16 @@ public class FeedPollingBackgroundServiceTests
     {
         var polling = new ScriptedPollingService(call =>
             call == 1 ? throw new InvalidOperationException("database is on fire") : Nothing);
-        var (service, logger, provider) = Create(polling, intervalSeconds: 1);
+        var (service, logger, provider, clock) = Create(polling, intervalSeconds: 60);
         using var disposeProvider = provider;
 
         await service.StartAsync(CancellationToken.None);
-        await polling.WaitForCallsAsync(2, TimeSpan.FromSeconds(15));
+        await polling.WaitForCallsAsync(1, Patience);
+        clock.Advance(TimeSpan.FromSeconds(60));
+        await polling.WaitForCallsAsync(1, Patience);
         await service.StopAsync(CancellationToken.None);
 
-        Assert.True(polling.Calls >= 2);
+        Assert.Equal(2, polling.Calls);
         Assert.True(service.ExecuteTask!.IsCompletedSuccessfully, "A failed pass must not fault the background service (that would stop the host).");
         Assert.Contains(logger.Entries, e => e.Level == LogLevel.Error && e.Exception is InvalidOperationException);
     }
@@ -107,7 +115,7 @@ public class FeedPollingBackgroundServiceTests
     public async Task RunCycleAsync_SwallowsAndLogsFailures()
     {
         var polling = new ScriptedPollingService(_ => throw new InvalidOperationException("boom"));
-        var (service, logger, provider) = Create(polling);
+        var (service, logger, provider, _) = Create(polling);
         using var disposeProvider = provider;
 
         await service.RunCycleAsync(CancellationToken.None);
@@ -120,7 +128,7 @@ public class FeedPollingBackgroundServiceTests
     {
         using var cts = new CancellationTokenSource();
         var polling = new ScriptedPollingService(_ => throw new OperationCanceledException(cts.Token));
-        var (service, logger, provider) = Create(polling);
+        var (service, logger, provider, _) = Create(polling);
         using var disposeProvider = provider;
         await cts.CancelAsync();
 
@@ -140,7 +148,7 @@ public class FeedPollingBackgroundServiceTests
         });
         var email = new FakeNotificationService(NotificationChannel.Email);
         var slack = new FakeNotificationService(NotificationChannel.Slack);
-        var (service, _, provider) = Create(polling, notifiers: [email, slack]);
+        var (service, _, provider, _) = Create(polling, notifiers: [email, slack]);
         using var disposeProvider = provider;
 
         await service.RunCycleAsync(CancellationToken.None);
@@ -167,7 +175,7 @@ public class FeedPollingBackgroundServiceTests
             notification.RecipientEmail != "bob@example.test" ? Result.Success
             : failureThrows ? throw new InvalidOperationException("kaboom")
             : Error.Failure("Notification.EmailFailed", "SMTP said no"));
-        var (service, logger, provider) = Create(polling, notifiers: email);
+        var (service, logger, provider, _) = Create(polling, notifiers: email);
         using var disposeProvider = provider;
 
         await service.RunCycleAsync(CancellationToken.None);
@@ -182,7 +190,7 @@ public class FeedPollingBackgroundServiceTests
     public async Task RunCycleAsync_NothingNew_NotifiesNobody()
     {
         var email = new FakeNotificationService(NotificationChannel.Email);
-        var (service, _, provider) = Create(new ScriptedPollingService(_ => Nothing), notifiers: email);
+        var (service, _, provider, _) = Create(new ScriptedPollingService(_ => Nothing), notifiers: email);
         using var disposeProvider = provider;
 
         await service.RunCycleAsync(CancellationToken.None);
@@ -197,7 +205,7 @@ public class FeedPollingBackgroundServiceTests
         {
             ["alice@example.test"] = [Story("A1")],
         });
-        var (service, logger, provider) = Create(polling);
+        var (service, logger, provider, _) = Create(polling);
         using var disposeProvider = provider;
 
         await service.RunCycleAsync(CancellationToken.None);
@@ -220,7 +228,7 @@ public class FeedPollingBackgroundServiceTests
         var service = new FeedPollingBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Microsoft.Extensions.Options.Options.Create(new PollingOptions()),
-            TimeProvider.System,
+            new FakeTimeProvider(),
             new ListLogger<FeedPollingBackgroundService>());
 
         await service.RunCycleAsync(CancellationToken.None);

@@ -6,9 +6,11 @@ Strongly-typed, startup-validated configuration for SMTP, polling, the unsubscri
 
 - **`SmtpOptions`** (`Smtp`) — `Host` (required), `Port` (1–65535, default 25), `FromAddress` (required, email),
   `FromName`, `UseStartTls`, optional `UserName` / `Password`.
-- **`PollingOptions`** (`Polling`) — `IntervalSeconds` (≥1, default 60) with an `Interval` `TimeSpan` accessor, and
+- **`PollingOptions`** (`Polling`) — `IntervalSeconds` (1 … 86 400, default 60; capped at a day because
+  `PeriodicTimer` rejects very long periods only at startup) with an `Interval` `TimeSpan` accessor;
   `FirstPollNotificationCap` (≥0, default 5): how many of the newest articles are reported on a feed's first
-  successful poll — see [Feed Polling](./feed-polling.md).
+  successful poll or on a catch-up poll; `CatchUpAfterMinutes` (≥1, default 360) with a `CatchUpAfter` accessor: a
+  feed last polled longer ago than this is treated like a first poll — see [Feed Polling](./feed-polling.md).
 - **`UnsubscribeOptions`** (`Unsubscribe`) — `HmacSecret` (required, min length 16) for RFC 8058 unsubscribe tokens (C5).
 - **`AdminSeedOptions`** (`AdminSeed`) — optional `Email` / `Password` with an `IsConfigured` computed flag; see
   [Seed Data](./seed-data.md).
@@ -33,7 +35,8 @@ Strongly-typed, startup-validated configuration for SMTP, polling, the unsubscri
 
 ## Tests
 
-- `LuminaFeed.Tests/OptionsTests.cs` — binding, the `PollingOptions.Interval` computation, and DataAnnotations failures
-  (required SMTP fields, minimum-length unsubscribe secret) through an options pipeline mirroring `Program.cs`.
+- `LuminaFeed.Tests/OptionsTests.cs` — binding, the `PollingOptions.Interval` / `CatchUpAfter` computations, and
+  DataAnnotations failures (required SMTP fields, minimum-length unsubscribe secret, the polling ranges) through an
+  options pipeline mirroring `Program.cs`.
 - `LuminaFeed.Tests/HostBootTests.cs` — boots the real `Program` DI graph against an isolated temp SQLite database:
   a valid-config boot resolves the graph and runs seeding; a missing `Unsubscribe:HmacSecret` fails `ValidateOnStart`.

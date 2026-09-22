@@ -3,6 +3,7 @@ using LuminaFeed.Domain;
 using LuminaFeed.Options;
 using LuminaFeed.Services.Polling;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 
 namespace LuminaFeed.Tests;
 
@@ -11,20 +12,20 @@ public sealed class FeedPollingServiceTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
 
-    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
     private readonly SqliteTestDatabase _db = new();
     private readonly FakeFeedFetcher _fetcher = new();
     private readonly ListLogger<FeedPollingService> _logger = new();
+    private readonly FakeTimeProvider _clock = new(Now);
 
-    private FeedPollingService CreateService(int firstPollCap = 5) => new(
+    private FeedPollingService CreateService(int firstPollCap = 5, int catchUpAfterMinutes = 360) => new(
         _db,
         _fetcher,
-        Microsoft.Extensions.Options.Options.Create(new PollingOptions { FirstPollNotificationCap = firstPollCap }),
-        new FixedTimeProvider(Now),
+        Microsoft.Extensions.Options.Options.Create(new PollingOptions
+        {
+            FirstPollNotificationCap = firstPollCap,
+            CatchUpAfterMinutes = catchUpAfterMinutes,
+        }),
+        _clock,
         _logger);
 
     public void Dispose() => _db.Dispose();
@@ -188,6 +189,43 @@ public sealed class FeedPollingServiceTests : IDisposable
         _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(3));
         await service.PollAsync();
 
+        _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(13));
+        var second = await service.PollAsync();
+
+        Assert.Equal(10, Assert.Single(second).Value.Count);
+    }
+
+    [Fact]
+    public async Task PollAsync_FeedUnpolledForLongerThanTheCatchUpWindow_IsCappedLikeAFirstPoll()
+    {
+        // The feed lost its subscribers for a while (or the host was down); polling it again finds a backlog.
+        var feed = AddFeed("bbc");
+        Subscribe(_db.AddUser(), feed);
+        var service = CreateService(firstPollCap: 2, catchUpAfterMinutes: 360);
+        _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(3));
+        await service.PollAsync();
+
+        _clock.Advance(TimeSpan.FromHours(7));
+        _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(13));
+        var catchUp = await service.PollAsync();
+
+        Assert.Equal(["Article 13", "Article 12"], Assert.Single(catchUp).Value.Select(a => a.Title));
+        Assert.Equal(13, StoredArticles().Count);
+        using var ctx = _db.CreateDbContext();
+        Assert.Equal(Now.AddHours(7), ctx.Feeds.Single(f => f.Id == feed.Id).LastPolledAt);
+    }
+
+    [Fact]
+    public async Task PollAsync_FeedPolledWithinTheCatchUpWindow_IsNotCapped()
+    {
+        var feed = AddFeed("bbc");
+        Subscribe(_db.AddUser(), feed);
+        var service = CreateService(firstPollCap: 2, catchUpAfterMinutes: 360);
+        _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(3));
+        await service.PollAsync();
+
+        // A few missed ticks are not a backlog.
+        _clock.Advance(TimeSpan.FromMinutes(359));
         _fetcher.Serve(feed.FeedUrl, RssDocument.WithSequence(13));
         var second = await service.PollAsync();
 

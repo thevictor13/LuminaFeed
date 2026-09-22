@@ -86,10 +86,12 @@ public sealed class FeedPollingService(
             .ToHashSetAsync(cancellationToken);
         var newArticles = candidates.Where(a => !knownIds.Contains(a.ExternalId)).ToList();
 
-        // Only a successful poll counts: a feed that has never been read successfully keeps its "first poll"
-        // status, so its eventual backlog is still capped below.
-        var isFirstPoll = feed.LastPolledAt is null;
-        feed.LastPolledAt = timeProvider.GetUtcNow();
+        // A first poll — or a catch-up poll after the feed went unwatched (no subscribers for a while, host
+        // downtime) — finds a backlog, so its notifications are capped below. Only a successful poll stamps
+        // LastPolledAt, so a feed that has never been read successfully keeps its first-poll status.
+        var now = timeProvider.GetUtcNow();
+        var isCatchUp = feed.LastPolledAt is null || now - feed.LastPolledAt.Value > options.Value.CatchUpAfter;
+        feed.LastPolledAt = now;
         db.Articles.AddRange(newArticles);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -101,7 +103,7 @@ public sealed class FeedPollingService(
         IEnumerable<Article> ordered = newArticles
             .OrderByDescending(a => a.PublishedAt.HasValue)
             .ThenByDescending(a => a.PublishedAt);
-        var notifiable = (isFirstPoll ? ordered.Take(options.Value.FirstPollNotificationCap) : ordered)
+        var notifiable = (isCatchUp ? ordered.Take(options.Value.FirstPollNotificationCap) : ordered)
             .Select(a => ToNewArticle(feed, a))
             .ToList();
         if (notifiable.Count == 0)

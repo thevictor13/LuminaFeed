@@ -54,6 +54,32 @@ public class OptionsTests
         Assert.Equal(0, bound!.FirstPollNotificationCap);
     }
 
+    [Fact]
+    public void PollingOptions_CatchUpAfter_DefaultsToSixHours_AndBinds()
+    {
+        Assert.Equal(360, new PollingOptions().CatchUpAfterMinutes);
+        Assert.Equal(TimeSpan.FromHours(6), new PollingOptions().CatchUpAfter);
+
+        var config = BuildConfig(new() { ["Polling:CatchUpAfterMinutes"] = "90" });
+        var bound = config.GetSection(PollingOptions.SectionName).Get<PollingOptions>();
+        Assert.Equal(TimeSpan.FromMinutes(90), bound!.CatchUpAfter);
+    }
+
+    [Theory]
+    [InlineData(86_400, 1, true)]
+    [InlineData(86_401, 1, false)] // beyond a day: PeriodicTimer would reject far larger values at startup instead
+    [InlineData(60, 0, false)]
+    [InlineData(60, 1, true)]
+    public void PollingOptions_IntervalUpperBound_AndCatchUpWindow_AreValidated(int intervalSeconds, int catchUpAfterMinutes, bool expectedValid)
+    {
+        var options = new PollingOptions { IntervalSeconds = intervalSeconds, CatchUpAfterMinutes = catchUpAfterMinutes };
+
+        var isValid = Validator.TryValidateObject(
+            options, new ValidationContext(options), new List<ValidationResult>(), validateAllProperties: true);
+
+        Assert.Equal(expectedValid, isValid);
+    }
+
     [Theory]
     [InlineData(0, 5, false)]
     [InlineData(-1, 5, false)]

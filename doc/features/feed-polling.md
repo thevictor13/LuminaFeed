@@ -36,10 +36,13 @@ FeedPollingBackgroundService ──every Polling:IntervalSeconds──▶ IFeedP
     **confirmed** account email are included; a subscriber of several feeds gets one combined list, newest first per
     feed. The key stays the email address; with per-subscriber channel dispatch (C4) the value grows into a
     per-subscription digest (channels, Slack webhook, subscription id).
-- **First-poll cap** — the first successful poll of a feed finds its whole backlog "new". Everything is stored, but
-  only the **newest `Polling:FirstPollNotificationCap` (default 5)** are reported (by publication date; undated items
-  rank last). Later polls report every new article. `0` makes the first poll a silent baseline. Because a failed poll
-  leaves `LastPolledAt` null, a feed that was unreachable at first still gets the cap when it finally answers.
+- **First-poll / catch-up cap** — the first successful poll of a feed finds its whole backlog "new". Everything is
+  stored, but only the **newest `Polling:FirstPollNotificationCap` (default 5)** are reported (by publication date;
+  undated items rank last). The same cap applies to a **catch-up** poll: one where the feed's `LastPolledAt` is older
+  than **`Polling:CatchUpAfterMinutes` (default 360)** — it lost all its subscribers for a while, or the host was down
+  — so a returning subscriber is not sent the whole gap. Polls within the window report every new article. `0` makes
+  first/catch-up polls a silent baseline. Because a failed poll leaves `LastPolledAt` unchanged, a feed that was
+  unreachable at first still gets the cap when it finally answers.
 - **`IFeedFetcher` → `HttpFeedFetcher`** — typed `HttpClient`: 30 s timeout, **10 MB** response cap, automatic
   gzip/deflate/brotli, a browser-compatible `User-Agent`, feed `Accept` types. Returns `ErrorOr<byte[]>` — non-2xx,
   transport errors, timeouts, oversize bodies and bad URLs are **errors, not exceptions**; caller cancellation still
@@ -55,6 +58,9 @@ FeedPollingBackgroundService ──every Polling:IntervalSeconds──▶ IFeedP
     `data:` URLs can never reach a page or an email.
   - Summary (`description` / `content:encoded` / `summary` / `content`) becomes plain text: scripts/styles and tags
     removed, entities decoded (twice-escaped markup too), whitespace collapsed, capped at 1000 characters.
+    **Bounded work on hostile input:** only the first 64 KB (`FeedParser.MarkupMaxLength`) of a title or description
+    is examined, and markup is stripped in a single linear scan rather than by backtracking regexes, so a
+    publisher-controlled value (a megabyte of unclosed `<script>` openers, say) cannot stall the pass.
   - Image from `enclosure` / Atom enclosure link (image types), `media:thumbnail`, `media:content`.
   - Dates: ISO 8601 and RFC 822 including `+hhmm` offsets, named zones (GMT, EST…, BST, CEST…) and a wrong weekday;
     an unreadable date (or unknown zone) leaves `PublishedAt` null rather than guessing. Missing title → `(untitled)`.
@@ -65,8 +71,9 @@ FeedPollingBackgroundService ──every Polling:IntervalSeconds──▶ IFeedP
 
 | Key | Default | Meaning |
 |---|---|---|
-| `IntervalSeconds` | `60` | Seconds between polling passes (≥ 1). |
-| `FirstPollNotificationCap` | `5` | Newest N articles reported on a feed's first successful poll (≥ 0). |
+| `IntervalSeconds` | `60` | Seconds between polling passes (1 … 86 400). |
+| `FirstPollNotificationCap` | `5` | Newest N articles reported on a feed's first successful poll, or on a catch-up poll (≥ 0). |
+| `CatchUpAfterMinutes` | `360` | A feed last polled longer ago than this is treated like a first poll (≥ 1; keep it well above the interval). |
 
 ## Validated against the live catalogue (2026-09-21)
 
@@ -88,9 +95,11 @@ links and images, HTML and double-escaped summaries, truncation, date formats, m
 probe, declared encoding, BOM), `HttpFeedFetcherTests` (body + headers, non-2xx, transport failure, timeout, caller cancellation, bad URL,
 oversize body, https-upgraded redirects, redirect loop, client/handler configuration), `FeedPollingServiceTests` (active
 feeds only, persistence + `LastPolledAt`, email-keyed result, de-dup across polls / within a document / per feed,
-first-poll cap by date, uncapped later polls, cap 0, failed first fetch keeps the cap, email-enabled + confirmed only,
+first-poll cap by date, uncapped later polls, catch-up cap after the window / uncapped within it (`FakeTimeProvider`),
+cap 0, failed first fetch keeps the cap, email-enabled + confirmed only,
 multi-feed subscriber, broken-feed isolation, cancellation, column fit; `LimitsTests` keeps the entity constants equal
 to the mapped columns), `FeedPollingBackgroundServiceTests`
-(immediate first pass, clean stop, keeps ticking after a throwing pass, fresh scope per pass), `OptionsTests`,
+(immediate first pass, clean stop, keeps ticking after a throwing pass, missed ticks coalesce, fresh scope per pass —
+all on a `FakeTimeProvider`, so no test waits for real time), `OptionsTests`,
 `HostBootTests` (the loop is hosted and healthy). Host-booting tests swap in a `NoNetworkFeedFetcher`, so no test
 ever reaches a real publisher.

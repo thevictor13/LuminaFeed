@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using LuminaFeed.Services.Polling;
 
@@ -255,6 +256,53 @@ public class FeedParserTests
 
         Assert.Equal(FeedParser.SummaryMaxLength, summary.Length);
         Assert.EndsWith("…", summary);
+    }
+
+    [Fact]
+    public void Parse_PathologicalMarkup_IsBoundedWork()
+    {
+        // Runs of unclosed <script> openers and of bare '<' are the shapes that made regex tag-stripping
+        // quadratic (minutes per item). A megabyte of each must cost a polling pass next to nothing: only the
+        // first 64 KB is looked at, and it is stripped in one linear pass.
+        var openers = string.Concat(Enumerable.Repeat("<script>", 128 * 1024));
+        var brackets = new string('<', 1024 * 1024);
+        var xml = $"""
+            <rss version="2.0"><channel>
+              <item><title><![CDATA[{brackets}]]></title><link>https://news.example.test/1</link><description><![CDATA[{openers}]]></description></item>
+              <item><title>Fine</title><link>https://news.example.test/2</link><description><![CDATA[<p>Hello <b>world</b>.</p>{openers}]]></description></item>
+            </channel></rss>
+            """;
+        var stopwatch = Stopwatch.StartNew();
+
+        var items = FeedParser.Parse(xml).Value;
+
+        stopwatch.Stop();
+        Assert.Equal(2, items.Count);
+        Assert.Equal(FeedParser.MarkupMaxLength, items[0].Title.Length);
+        Assert.Null(items[0].Summary);
+        Assert.Equal("Hello world.", items[1].Summary);
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5), $"Parsing took {stopwatch.Elapsed}.");
+    }
+
+    [Theory]
+    [InlineData("<p>Hello <b>world</b>.</p>", "Hello world.")]
+    [InlineData("Before<script type=\"text/javascript\">alert(1)</script>after", "Before after")]
+    [InlineData("Keep<style>p { color: red }</STYLE>going", "Keep going")]
+    [InlineData("a < b > c", "a c")] // looks like a tag, treated as one — same as before
+    [InlineData("unterminated <b", "unterminated <b")]
+    [InlineData("gone <script>for good", "gone")]
+    [InlineData("<em>x</em><strong>y</strong> <span>z</span>", "xy z")]
+    [InlineData("&lt;p&gt;escaped&lt;/p&gt; &amp; decoded", "escaped & decoded")]
+    public void Parse_StripsMarkupInOneLinearPass(string description, string expected)
+    {
+        var xml = $"""
+            <rss version="2.0"><channel><item>
+              <title>T</title><link>https://news.example.test/1</link>
+              <description><![CDATA[{description}]]></description>
+            </item></channel></rss>
+            """;
+
+        Assert.Equal(expected, Assert.Single(FeedParser.Parse(xml).Value).Summary);
     }
 
     [Fact]

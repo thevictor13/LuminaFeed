@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
@@ -30,6 +31,17 @@ public static partial class FeedParser
 {
     public const int SummaryMaxLength = 1000;
     public const string UntitledTitle = "(untitled)";
+
+    /// <summary>
+    /// How much of a title/description is looked at before it is turned into text. The text is capped far
+    /// below this anyway, and a publisher-controlled value must never be allowed to make the pass expensive.
+    /// </summary>
+    public const int MarkupMaxLength = 64 * 1024;
+
+    private static readonly HashSet<string> InlineTags = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "abbr", "b", "cite", "code", "em", "i", "mark", "q", "s", "small", "span", "strong", "sub", "sup", "u",
+    };
 
     private const string MediaNamespace = "http://search.yahoo.com/mrss/";
     private const char ByteOrderMark = (char)0xFEFF;
@@ -193,10 +205,14 @@ public static partial class FeedParser
         if (string.IsNullOrEmpty(html))
             return string.Empty;
 
-        var text = StripTags(ScriptOrStyle().Replace(html, " "));
+        // Untrusted and potentially huge (the fetch allows 10 MB): bound the work up front.
+        if (html.Length > MarkupMaxLength)
+            html = html[..MarkupMaxLength];
+
+        var text = StripMarkup(html);
         text = WebUtility.HtmlDecode(text);
         // Decoding can surface escaped markup (&lt;p&gt;…), so strip once more.
-        text = StripTags(text);
+        text = StripMarkup(text);
         text = Whitespace().Replace(text, " ").Trim();
 
         if (maxLength is { } max && text.Length > max)
@@ -204,8 +220,62 @@ public static partial class FeedParser
         return text;
     }
 
-    /// <summary>Inline tags vanish (so "<b>world</b>." stays "world."); block-level tags become a word break.</summary>
-    private static string StripTags(string html) => Tag().Replace(InlineTag().Replace(html, string.Empty), " ");
+    /// <summary>
+    /// A single linear pass (no regex backtracking, whatever the input looks like): scripts and styles vanish
+    /// with their content, inline tags vanish (so "<b>world</b>." stays "world."), any other tag becomes a word
+    /// break. An unterminated tag is kept as text; an unterminated script/style swallows the rest.
+    /// </summary>
+    private static string StripMarkup(string html)
+    {
+        var text = new StringBuilder(html.Length);
+        var i = 0;
+        while (i < html.Length)
+        {
+            if (html[i] != '<')
+            {
+                text.Append(html[i++]);
+                continue;
+            }
+
+            var close = html.IndexOf('>', i + 1);
+            if (close < 0)
+            {
+                text.Append(html, i, html.Length - i);
+                break;
+            }
+
+            var tag = html.AsSpan(i + 1, close - i - 1);
+            var isClosing = tag.StartsWith("/");
+            var name = TagName(isClosing ? tag[1..] : tag);
+
+            if (!isClosing && (name.Equals("script", StringComparison.OrdinalIgnoreCase)
+                               || name.Equals("style", StringComparison.OrdinalIgnoreCase)))
+            {
+                var end = html.IndexOf("</" + name, close + 1, StringComparison.OrdinalIgnoreCase);
+                if (end < 0)
+                    break;
+                var endClose = html.IndexOf('>', end);
+                i = endClose < 0 ? html.Length : endClose + 1;
+                text.Append(' ');
+                continue;
+            }
+
+            if (!InlineTags.Contains(name))
+                text.Append(' ');
+            i = close + 1;
+        }
+
+        return text.ToString();
+    }
+
+    /// <summary>The element name at the start of a tag's inside (letters and digits up to the first other character).</summary>
+    private static string TagName(ReadOnlySpan<char> tagInside)
+    {
+        var length = 0;
+        while (length < tagInside.Length && char.IsAsciiLetterOrDigit(tagInside[length]))
+            length++;
+        return tagInside[..length].ToString();
+    }
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
 
@@ -251,15 +321,7 @@ public static partial class FeedParser
         return null;
     }
 
-    [GeneratedRegex(@"<(script|style)\b[^>]*>.*?</\1\s*>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
-    private static partial Regex ScriptOrStyle();
-
-    [GeneratedRegex(@"</?(a|abbr|b|cite|code|em|i|mark|q|s|small|span|strong|sub|sup|u)\b[^>]*>", RegexOptions.IgnoreCase)]
-    private static partial Regex InlineTag();
-
-    [GeneratedRegex(@"<[^>]+>")]
-    private static partial Regex Tag();
-
+    // The remaining patterns are linear: a whitespace run, and three small anchored date-shape rewrites.
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
 
