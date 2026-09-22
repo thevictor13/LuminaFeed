@@ -18,9 +18,9 @@
 <h2 class="h4">Add a feed</h2>
 
 <ErrorList Messages="errors"/>
-@if (createdName is not null)
+@if (notice is not null)
 {
-    <div class="alert alert-success" role="status">Feed "@createdName" was added.</div>
+    <div class="alert alert-success" role="status">@notice</div>
 }
 
 @if (categories is { Count: 0 })
@@ -84,13 +84,14 @@ else if (feeds.Count == 0)
 }
 else
 {
-    <table class="table table-sm">
+    <table class="table table-sm align-middle">
         <thead>
         <tr>
             <th scope="col">Category</th>
             <th scope="col">Name</th>
             <th scope="col">Feed URL</th>
             <th scope="col" class="text-end">Popularity</th>
+            <th scope="col" class="text-end">Actions</th>
         </tr>
         </thead>
         <tbody>
@@ -101,19 +102,98 @@ else
                 <td><a href="@feed.SiteUrl" target="_blank" rel="noopener noreferrer">@feed.Name</a></td>
                 <td class="text-break">@feed.FeedUrl</td>
                 <td class="text-end">@feed.Popularity</td>
+                <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                            @onclick="() => BeginEdit(feed)" aria-label="@($"Edit {feed.Name}")">Edit</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            @onclick="() => BeginDeleteAsync(feed)" aria-label="@($"Delete {feed.Name}")">Delete</button>
+                </td>
             </tr>
         }
         </tbody>
     </table>
 }
 
+<Modal Visible="editing" Title="Edit feed" OnClose="CancelEdit">
+    <ErrorList Messages="editErrors"/>
+    <EditForm Model="edit" OnSubmit="SaveEditAsync">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="edit-feed-name" class="form-label">Name</label>
+                <InputText id="edit-feed-name" @bind-Value="edit.Name" class="form-control" maxlength="@Feed.NameMaxLength"/>
+            </div>
+            <div class="col-md-6">
+                <label for="edit-feed-category" class="form-label">Category</label>
+                <InputSelect id="edit-feed-category" @bind-Value="edit.CategoryId" class="form-select">
+                    <option value="">Select a category…</option>
+                    @foreach (var category in categories ?? [])
+                    {
+                        <option value="@category.Id">@category.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="col-md-6">
+                <label for="edit-feed-url" class="form-label">Feed URL <span class="text-secondary">(RSS/Atom endpoint)</span></label>
+                <InputText id="edit-feed-url" @bind-Value="edit.FeedUrl" class="form-control"/>
+            </div>
+            <div class="col-md-6">
+                <label for="edit-feed-site-url" class="form-label">Site URL</label>
+                <InputText id="edit-feed-site-url" @bind-Value="edit.SiteUrl" class="form-control"/>
+            </div>
+            <div class="col-md-6">
+                <label for="edit-feed-image-url" class="form-label">Image URL <span class="text-secondary">(optional)</span></label>
+                <InputText id="edit-feed-image-url" @bind-Value="edit.ImageUrl" class="form-control"/>
+            </div>
+            <div class="col-md-6">
+                <label for="edit-feed-popularity" class="form-label">Popularity</label>
+                <InputNumber id="edit-feed-popularity" @bind-Value="edit.Popularity" class="form-control" min="0"/>
+            </div>
+            <div class="col-12">
+                <label for="edit-feed-description" class="form-label">Description <span class="text-secondary">(optional)</span></label>
+                <InputTextArea id="edit-feed-description" @bind-Value="edit.Description" class="form-control" rows="2"/>
+            </div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-3">
+            <button type="button" class="btn btn-secondary" @onclick="CancelEdit" disabled="@editBusy">Cancel</button>
+            <button type="submit" class="btn btn-primary" disabled="@editBusy">Save changes</button>
+        </div>
+    </EditForm>
+</Modal>
+
+<Modal Visible="deleting is not null" Title="Delete feed" OnClose="CancelDelete">
+    <ErrorList Messages="deleteErrors"/>
+    @if (deleting is not null)
+    {
+        <p>Delete the feed <strong>@deleting.Name</strong>? This can't be undone.</p>
+        @if (deleteImpact is { } impact && (impact.SubscriptionCount > 0 || impact.ArticleCount > 0))
+        {
+            <p class="text-danger">
+                This also removes @Plural(impact.SubscriptionCount, "subscription") and
+                @Plural(impact.ArticleCount, "stored article").
+            </p>
+        }
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" @onclick="CancelDelete" disabled="@deleteBusy">Cancel</button>
+            <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@deleteBusy">Delete feed</button>
+        </div>
+    }
+</Modal>
+
 @code {
     private readonly FormModel form = new();
+    private readonly EditModel edit = new();
     private IReadOnlyList<CategorySummary>? categories;
     private IReadOnlyList<FeedSummary>? feeds;
     private IReadOnlyList<string> errors = [];
-    private string? createdName;
+    private IReadOnlyList<string> editErrors = [];
+    private IReadOnlyList<string> deleteErrors = [];
+    private string? notice;
+    private FeedSummary? deleting;
+    private FeedDeletionImpact? deleteImpact;
+    private bool editing;
     private bool busy;
+    private bool editBusy;
+    private bool deleteBusy;
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,7 +209,7 @@ else
         busy = true;
         try
         {
-            createdName = null;
+            notice = null;
             var result = await FeedService.CreateAsync(new CreateFeedRequest(
                 form.Name,
                 form.CategoryId ?? Guid.Empty,
@@ -145,7 +225,7 @@ else
             }
 
             errors = [];
-            createdName = result.Value.Name;
+            notice = $"Feed \"{result.Value.Name}\" was added.";
             form.Reset();
             feeds = await FeedService.ListAsync();
         }
@@ -154,6 +234,108 @@ else
             busy = false;
         }
     }
+
+    private void BeginEdit(FeedSummary feed)
+    {
+        edit.Id = feed.Id;
+        edit.Name = feed.Name;
+        edit.CategoryId = feed.CategoryId;
+        edit.FeedUrl = feed.FeedUrl;
+        edit.SiteUrl = feed.SiteUrl;
+        edit.ImageUrl = feed.ImageUrl;
+        edit.Description = feed.Description;
+        edit.Popularity = feed.Popularity;
+        editErrors = [];
+        editing = true;
+    }
+
+    private void CancelEdit()
+    {
+        editing = false;
+        editErrors = [];
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editBusy)
+            return;
+
+        editBusy = true;
+        try
+        {
+            var result = await FeedService.UpdateAsync(new UpdateFeedRequest(
+                edit.Id,
+                edit.Name,
+                edit.CategoryId ?? Guid.Empty,
+                edit.FeedUrl,
+                edit.SiteUrl,
+                edit.ImageUrl,
+                edit.Description,
+                edit.Popularity));
+            if (result.IsError)
+            {
+                editErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            editing = false;
+            editErrors = [];
+            errors = [];
+            notice = $"Feed \"{result.Value.Name}\" was updated.";
+            feeds = await FeedService.ListAsync();
+        }
+        finally
+        {
+            editBusy = false;
+        }
+    }
+
+    private async Task BeginDeleteAsync(FeedSummary feed)
+    {
+        deleting = feed;
+        deleteImpact = null;
+        deleteErrors = [];
+        var result = await FeedService.GetDeletionImpactAsync(feed.Id);
+        deleteImpact = result.IsError ? null : result.Value;
+    }
+
+    private void CancelDelete()
+    {
+        deleting = null;
+        deleteImpact = null;
+        deleteErrors = [];
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deleting is null || deleteBusy)
+            return;
+
+        deleteBusy = true;
+        try
+        {
+            var target = deleting;
+            var result = await FeedService.DeleteAsync(target.Id);
+            if (result.IsError)
+            {
+                deleteErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            deleting = null;
+            deleteImpact = null;
+            deleteErrors = [];
+            errors = [];
+            notice = $"Feed \"{target.Name}\" was deleted.";
+            feeds = await FeedService.ListAsync();
+        }
+        finally
+        {
+            deleteBusy = false;
+        }
+    }
+
+    private static string Plural(int count, string noun) => $"{count} {noun}{(count == 1 ? "" : "s")}";
 
     private sealed class FormModel
     {
@@ -172,5 +354,17 @@ else
             ImageUrl = Description = null;
             Popularity = 0;
         }
+    }
+
+    private sealed class EditModel
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Guid? CategoryId { get; set; }
+        public string FeedUrl { get; set; } = string.Empty;
+        public string SiteUrl { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
+        public string? Description { get; set; }
+        public int Popularity { get; set; }
     }
 }

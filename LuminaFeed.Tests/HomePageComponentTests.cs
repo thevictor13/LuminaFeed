@@ -25,7 +25,8 @@ public sealed class HomePageComponentTests : BunitContext
 
     public HomePageComponentTests()
     {
-        Services.AddSingleton<IFeedService>(new FeedService(_db, new CreateFeedRequestValidator()));
+        Services.AddSingleton<IFeedService>(
+            new FeedService(_db, new CreateFeedRequestValidator(), new UpdateFeedRequestValidator()));
         _feed = _db.AddFeed(_db.AddCategory("World News").Id, "BBC News");
     }
 

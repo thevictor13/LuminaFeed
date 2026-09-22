@@ -22,7 +22,8 @@ public sealed class AdminFormsComponentTests : BunitContext
     {
         Services.AddSingleton<ICategoryService>(
             new CategoryService(_db, new CreateCategoryRequestValidator(), new UpdateCategoryRequestValidator()));
-        Services.AddSingleton<IFeedService>(new FeedService(_db, new CreateFeedRequestValidator()));
+        Services.AddSingleton<IFeedService>(
+            new FeedService(_db, new CreateFeedRequestValidator(), new UpdateFeedRequestValidator()));
     }
 
     /// <summary>
@@ -228,5 +229,81 @@ public sealed class AdminFormsComponentTests : BunitContext
         cut.WaitForAssertion(() => Assert.Contains("'Feed Url' must be an absolute http(s) URL.", cut.Find(".alert-danger").TextContent));
         using var ctx = _db.CreateDbContext();
         Assert.Empty(ctx.Feeds);
+    }
+
+    [Fact]
+    public async Task Feeds_EditingOne_UpdatesTheRow_WithTheCategoryPreselected()
+    {
+        var science = _db.AddCategory("Science");
+        _db.AddFeed(science.Id, "Natrue", "https://nature.test/rss.xml");
+        var cut = RenderPage<Feeds>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Natrue']").ClickAsync(new MouseEventArgs());
+
+        var name = cut.WaitForElement("#edit-feed-name");
+        Assert.Equal("Natrue", name.GetAttribute("value"));
+        Assert.Equal(science.Id.ToString(), cut.Find("#edit-feed-category").GetAttribute("value"));
+        name.Change("Nature");
+        await cut.Find(".modal form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Feed \"Nature\" was updated.", cut.Find(".alert-success").TextContent));
+        Assert.Empty(cut.FindAll(".modal"));
+        Assert.Contains("Nature", cut.Find("tbody tr").TextContent);
+        using var ctx = _db.CreateDbContext();
+        Assert.Equal("Nature", Assert.Single(ctx.Feeds).Name);
+    }
+
+    [Fact]
+    public async Task Feeds_EditingOntoAnotherFeedsUrl_ShowsTheConflictInTheDialog()
+    {
+        var science = _db.AddCategory("Science");
+        _db.AddFeed(science.Id, "BBC", "https://bbc.test/rss.xml");
+        _db.AddFeed(science.Id, "Reuters", "https://reuters.test/rss.xml");
+        var cut = RenderPage<Feeds>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Reuters']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#edit-feed-url").Change("https://bbc.test/rss.xml");
+        await cut.Find(".modal form").SubmitAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("already exists", cut.Find(".modal .alert-danger").TextContent));
+        Assert.NotEmpty(cut.FindAll(".modal"));
+        Assert.Empty(cut.FindAll(".alert-success"));
+    }
+
+    [Fact]
+    public async Task Feeds_DeletingOne_ShowsTheImpact_AndRemovesTheRow()
+    {
+        var science = _db.AddCategory("Science");
+        var feed = _db.AddFeed(science.Id, "Nature", "https://nature.test/rss.xml");
+        var user = _db.AddUser();
+        using (var seed = _db.CreateDbContext())
+        {
+            seed.Subscriptions.Add(new Subscription { UserId = user.Id, FeedId = feed.Id, EmailEnabled = true });
+            seed.Articles.Add(new Article { FeedId = feed.Id, ExternalId = "a1", Title = "t1", Link = "https://nature.test/1" });
+            seed.Articles.Add(new Article { FeedId = feed.Id, ExternalId = "a2", Title = "t2", Link = "https://nature.test/2" });
+            seed.SaveChanges();
+        }
+        var cut = RenderPage<Feeds>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Delete Nature']").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            var body = cut.Find(".modal-body").TextContent;
+            Assert.Contains("1 subscription", body);
+            Assert.Contains("2 stored articles", body);
+        });
+        await cut.Find(".modal .btn-danger").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Contains("Feed \"Nature\" was deleted.", cut.Find(".alert-success").TextContent));
+        Assert.Empty(cut.FindAll(".modal"));
+        Assert.Contains("No feeds yet.", cut.Markup);
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Feeds);
+        Assert.Empty(ctx.Subscriptions);
+        Assert.Empty(ctx.Articles);
     }
 }

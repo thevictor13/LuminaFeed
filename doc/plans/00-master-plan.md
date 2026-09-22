@@ -82,8 +82,14 @@ dependencies are called out.
   CSS-only Bootstrap modal (`Components/Shared/Modal.razor`, no JS interop). Plan (with A2):
   [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md); feature:
   [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
-- [ ] 🗂 **A2 — Feed CRUD** (edit/delete, image, category dropdown). _(needs S1)_ — plan:
-  [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md).
+- [x] 🗂 **A2 — Feed CRUD** (edit/delete, image, category dropdown). _(needs S1)_ ✅ **Done** — `FeedService` gains
+  `UpdateAsync` (duplicate-URL check ignores the edited row; not-found for an unknown feed or category),
+  `GetDeletionImpactAsync` (subscription/article counts for the warning) and `DeleteAsync` (loads
+  `.Include(Subscriptions)` because `Subscription → Feed` is `ClientCascade`; articles cascade at the DB).
+  `/admin/feeds` edits every field (incl. the category dropdown) in the shared modal, and deletes after warning of
+  the subscriptions/articles that go with it. Plan:
+  [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md); feature:
+  [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
 - [ ] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_ **Security-stamp guard (from G0.9):** the admin claim is baked into the auth cookie by `AdminClaimsPrincipalFactory`, so when A3 toggles a user's `IsAdmin`, it must call `UserManager.UpdateSecurityStampAsync` so `IdentityRevalidatingAuthenticationStateProvider` regenerates the principal — otherwise the change won't take effect until the user's next sign-in.
 
 ### Track B — Public UX

@@ -1,8 +1,8 @@
-# Feature: Admin Catalogue Management (S1 · A1)
+# Feature: Admin Catalogue Management (S1 · A1 · A2)
 
-Admins can manage the feed catalogue: **categories** are full CRUD (create, list, **edit**, **delete** — **A1**);
-**feeds** are create + list, with edit/delete arriving in **A2**. Editing and deleting happen in a **modal dialog**
-opened from the row, so the list stays in place.
+Admins can manage the feed catalogue: both **categories** (**A1**) and **feeds** (**A2**) are full CRUD — create,
+list, **edit** and **delete**. Editing and deleting happen in a **modal dialog** opened from the row, so the list
+stays in place.
 
 ## Pages (`LuminaFeed/Components/Admin/`)
 
@@ -16,7 +16,9 @@ redirected to the login page with a `ReturnUrl`.
 - **`/admin/feeds`** (`Feeds`) — add form (name, **category dropdown**, feed URL, site URL, optional image URL,
   popularity, optional description) above a table of all feeds. With no categories it points the admin at the
   categories page instead. After a successful add the category stays selected so several feeds can be added in a row.
-  (Edit/delete arrive with A2.)
+  Each row has **Edit** and **Delete** actions (**A2**); the edit dialog reuses every field including the category
+  dropdown. Deleting a feed **also removes its subscriptions and stored articles** (cascade), so the delete dialog
+  first fetches and shows those counts (`IFeedService.GetDeletionImpactAsync`) as a warning before confirming.
 
 The pages use `@rendermode InteractiveServer` and hold no business logic: they call the services below and render the
 returned error descriptions through the shared `Components/Shared/ErrorList` alert. A `busy` flag ignores a second
@@ -44,6 +46,14 @@ dialog closes, the table refreshes and the notice updates. (C1's subscribe dialo
 - **`Feeds/IFeedService` → `FeedService`**
   - `ListAsync()` — `FeedSummary` rows ordered by category name, then feed name.
   - `CreateAsync(CreateFeedRequest)` — trims input, stores blank optionals as `null`.
+  - `UpdateAsync(UpdateFeedRequest)` **(A2)** — trims input; not-found for an unknown feed **or** category;
+    duplicate-URL check ignores the row being edited.
+  - `GetDeletionImpactAsync(Guid id)` **(A2)** — `FeedDeletionImpact(Id, Name, SubscriptionCount, ArticleCount)` for
+    the delete warning; not-found for an unknown id. (`FeedSummary` is deliberately left unchanged, so the public
+    main view gains no extra joins.)
+  - `DeleteAsync(Guid id)` **(A2)** — `ErrorOr<Deleted>`; not-found for an unknown id. Loads the feed with its
+    `Subscriptions` included, because `Subscription → Feed` is **`ClientCascade`** (the User owns the single DB
+    cascade path into `Subscriptions`, so EF must delete the feed's subscriptions itself); articles cascade at the DB.
 
 The services take a second injected validator for the update request (both are auto-discovered by
 `AddValidatorsFromAssemblyContaining<Program>()`). All fallible operations return **`ErrorOr<T>`**:
@@ -82,6 +92,10 @@ so Identity's stores and the seeders are unchanged.
   `CategoryServiceTests` also covers **A1**: update persists/trims and keeps its feed count, a rename onto another
   category is a conflict while a case-variant of the row's own name is allowed, unknown-id updates/deletes are
   not-found, and deleting a category with feeds is a `Category.HasFeeds` conflict.
+  `FeedServiceTests` also covers **A2**: update persists including a category change, a duplicate-URL conflict vs.
+  another feed (a case-variant of the row's own URL is allowed), unknown-feed / unknown-category not-found, non-http
+  URL validation; delete cascades the feed's subscriptions and articles while leaving other feeds' rows intact; and
+  the deletion-impact counts (and not-found).
 - `AdminPagesTests` — each admin page is routed and carries `[Authorize(Policy = "Admin")]`; anonymous requests are
   redirected to login with the `ReturnUrl`; a **signed-in admin** (seeded, signed in through the real login form)
   gets the pages rendered with the seeded catalogue (the category dropdown lists a seeded category by id).
@@ -91,7 +105,9 @@ so Identity's stores and the seeders are unchanged.
   feed URL is rejected; with no categories the feeds page points at the categories page instead of a form.
   **A1 dialogs:** the Edit dialog updates the row and closes, editing onto an existing name shows the conflict
   inside the dialog, deleting an empty category removes the row, and the Delete button is disabled for a category
-  that has feeds.
+  that has feeds. **A2 dialogs:** the feed Edit dialog opens with the category pre-selected and updates the row,
+  editing onto another feed's URL shows the conflict inside the dialog, and the Delete dialog shows the
+  subscription / article impact and then removes the row (and its subscriptions and articles).
 - `HostBootTests` — the services resolve from the real DI graph, and the factory-created context sees the same seeded
   database as the scoped one. The shared `TestAppFactory` keeps its temp database next to the test binaries and
   clears the SQLite connection pools so the file is actually deleted.

@@ -17,7 +17,10 @@ public sealed record FeedSummary(
 /// <summary>A category and its feeds, as grouped on the public main view.</summary>
 public sealed record CategoryFeeds(Guid CategoryId, string CategoryName, IReadOnlyList<FeedSummary> Feeds);
 
-/// <summary>The admin-curated feed catalogue. Minimal create/list for now; edit/delete arrive with A2.</summary>
+/// <summary>What deleting a feed would also remove — shown in the delete confirmation.</summary>
+public sealed record FeedDeletionImpact(Guid Id, string Name, int SubscriptionCount, int ArticleCount);
+
+/// <summary>The admin-curated feed catalogue: list, create, edit and delete (A2).</summary>
 public interface IFeedService
 {
     /// <summary>All feeds, ordered by category name then feed name (admin list).</summary>
@@ -34,4 +37,16 @@ public interface IFeedService
     /// duplicate feed URL.
     /// </summary>
     Task<ErrorOr<FeedSummary>> CreateAsync(CreateFeedRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Edits a feed; fails with validation errors, not-found for an unknown feed or category, or a conflict on a
+    /// duplicate feed URL (ignoring the feed being edited).
+    /// </summary>
+    Task<ErrorOr<FeedSummary>> UpdateAsync(UpdateFeedRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>The subscription and article counts a delete would take with the feed; not-found for an unknown id.</summary>
+    Task<ErrorOr<FeedDeletionImpact>> GetDeletionImpactAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>Deletes a feed and (by cascade) its subscriptions and articles; not-found for an unknown id.</summary>
+    Task<ErrorOr<Deleted>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
