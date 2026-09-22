@@ -193,4 +193,23 @@ public class IdentityEmailSenderTests
         // The plain-text alternative carries the raw link (no HTML context to escape).
         Assert.Contains(link, mail.Sent.TextBody!);
     }
+
+    [Fact]
+    public async Task SendConfirmationLinkAsync_EncodesTheLinkExactlyOnce()
+    {
+        var mail = new CapturingMailSender();
+        var sender = new IdentityEmailSender(mail);
+        var user = new ApplicationUser { UserName = "alice", Email = "alice@example.test" };
+        // Identity callback links always carry several query parameters. The sender owns the HTML
+        // encoding, so the pages must hand it the raw link: a pre-encoded one would end up as
+        // "&amp;amp;code=" and the browser would then look for a parameter called "amp;code".
+        const string link = "https://example.test/Account/ConfirmEmail?userId=u1&code=c1&returnUrl=%2F";
+
+        await sender.SendConfirmationLinkAsync(user, user.Email, link);
+
+        Assert.Contains("userId=u1&amp;code=c1&amp;returnUrl=%2F", mail.Sent!.HtmlBody);
+        Assert.DoesNotContain("&amp;amp;", mail.Sent.HtmlBody);
+        Assert.Contains(link, mail.Sent.TextBody!);
+        Assert.DoesNotContain("&amp;", mail.Sent.TextBody!);
+    }
 }

@@ -9,6 +9,14 @@ internal static partial class TestSignIn
     [GeneratedRegex("name=\"__RequestVerificationToken\" value=\"([^\"]+)\"")]
     private static partial Regex AntiforgeryToken();
 
+    /// <summary>The antiforgery token a rendered Identity form carries, ready to post back.</summary>
+    public static string AntiforgeryTokenFrom(string formHtml)
+    {
+        var token = AntiforgeryToken().Match(formHtml);
+        Assert.True(token.Success, "The page did not contain an antiforgery token.");
+        return WebUtility.HtmlDecode(token.Groups[1].Value);
+    }
+
     /// <summary>
     /// Posts the login form (with its antiforgery token); the client's cookie container then carries
     /// the auth cookie. The client must not follow redirects automatically.
@@ -16,13 +24,11 @@ internal static partial class TestSignIn
     public static async Task SignInAsync(HttpClient client, string email, string password)
     {
         var loginPage = await client.GetStringAsync("/Account/Login");
-        var token = AntiforgeryToken().Match(loginPage);
-        Assert.True(token.Success, "The login page did not contain an antiforgery token.");
 
         using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["_handler"] = "login",
-            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token.Groups[1].Value),
+            ["__RequestVerificationToken"] = AntiforgeryTokenFrom(loginPage),
             ["Input.Email"] = email,
             ["Input.Password"] = password,
         }));

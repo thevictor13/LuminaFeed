@@ -10,7 +10,7 @@ Each feed card carries a `SubscribeButton` (`Components/Shared/`):
 
 | Visitor | Button |
 |---|---|
-| Anonymous (treated as having no subscriptions) | **Subscribe** — a link to `Account/Login?ReturnUrl=<current page>`; the login page's *Register* link forwards the same `ReturnUrl`, so the visitor lands back here after signing in or registering. |
+| Anonymous (treated as having no subscriptions) | **Subscribe** — a link to `Account/Login?ReturnUrl=<current page>`; the login page's *Register* link forwards the same `ReturnUrl`, so the visitor lands back here after signing in or registering. On the register path the `ReturnUrl` rides along in the confirmation email's link, and the `ConfirmEmail` page's **Continue** button leads to login with the same `ReturnUrl` (only a local path is honoured; anything off-site falls back to a plain login link). |
 | Signed in, not subscribed | **Subscribe** (primary) — creates the subscription with `EmailEnabled = true`. |
 | Signed in, subscribed | **Unsubscribe** in **red** — removes the subscription. |
 
@@ -49,4 +49,8 @@ twice. Service errors surface in the shared `ErrorList` alert.
 - `PublicPagesTests` — anonymous: all cards offer *Subscribe* as a login link with `ReturnUrl=%2F` and no
   *Unsubscribe*; signed in (through the real login form) with one subscription: exactly one red *Unsubscribe*, the
   rest *Subscribe* buttons, no login links, and the persisted-state payload is present.
+- `RegistrationFlowTests` — the register path end to end through the real host: the real Register form posts, the
+  recorded confirmation email carries a working link (encoded once in the HTML part, raw in the text part), opening
+  it confirms the account and offers *Continue* → `Account/Login?ReturnUrl=%2F`, and the confirmed account can sign
+  in. An off-site `ReturnUrl` is ignored; a mangled `code` yields the error message, not a 500.
 - `HostBootTests` — `ISubscriptionService` resolves from the real DI graph.

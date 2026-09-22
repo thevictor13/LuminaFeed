@@ -23,7 +23,11 @@ with C3.
   (and reset codes) through `EmailLayout` and delegates to `IMailSender`. Every email is sent **multipart**: the HTML
   body plus a **plain-text alternative** (better deliverability + text-only clients). Any value it interpolates directly
   into the HTML (the fallback link anchor, the reset code) is **HTML-encoded** with `HtmlEncoder`, mirroring
-  `EmailLayout`, so those inputs can't inject markup.
+  `EmailLayout`, so those inputs can't inject markup. **The sender owns that encoding**: the Identity pages
+  (`Register`, `ResendEmailConfirmation`, `ForgotPassword`, `ExternalLogin`, `Manage/Email`) hand it the **raw**
+  callback URL. The stock template pre-encoded the URL (its no-op sender interpolated it unencoded), which combined
+  with this sender produced double-encoded links (`&amp;amp;code=`) that `ConfirmEmail` could never read — so no
+  self-registered account could be confirmed. Fixed in P1.R; `RegistrationFlowTests` guards the whole path.
 
 ## Wiring (`Program.cs`)
 
@@ -36,4 +40,6 @@ with C3.
 `EmailLayout` produces a table-based (not div-based) shell with the VML namespace, emits both button variants, and
 HTML-encodes heading/text/URL; `MailKitMailSender.BuildMessage` sets From/To/Subject/HtmlBody, and `SendAsync` logs +
 rethrows on transport failure; `IdentityEmailSender` builds a table-based confirmation email containing the link,
-attaches a non-empty plain-text alternative (link/code), and HTML-encodes a hostile interpolated link.
+attaches a non-empty plain-text alternative (link/code), HTML-encodes a hostile interpolated link, and encodes a
+multi-parameter link **exactly once** (raw in the text part). `RegistrationFlowTests` opens the emailed link against
+the real host.

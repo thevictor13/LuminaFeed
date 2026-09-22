@@ -1,4 +1,4 @@
-﻿@page "/Account/ConfirmEmail"
+@page "/Account/ConfirmEmail"
 
 @using System.Text
 @using Microsoft.AspNetCore.Identity
@@ -13,14 +13,25 @@
 <h1>Confirm email</h1>
 <StatusMessage Message="@statusMessage"/>
 
+@if (confirmed)
+{
+    <p>Your account is ready. Sign in to pick up where you left off.</p>
+    <p><a href="@continueUrl" class="btn btn-primary">Continue</a></p>
+}
+
 @code {
     private string? statusMessage;
+    private bool confirmed;
+    private string continueUrl = "Account/Login";
 
     [CascadingParameter] private HttpContext HttpContext { get; set; } = default!;
 
     [SupplyParameterFromQuery] private string? UserId { get; set; }
 
     [SupplyParameterFromQuery] private string? Code { get; set; }
+
+    /// <summary>Where the visitor started (e.g. the feed they wanted to subscribe to); threaded through registration.</summary>
+    [SupplyParameterFromQuery] private string? ReturnUrl { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -35,13 +46,42 @@
         {
             HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
             statusMessage = $"Error loading user with ID {UserId}";
+            return;
         }
-        else
+
+        string code;
+        try
         {
-            var code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
-            var result = await UserManager.ConfirmEmailAsync(user, code);
-            statusMessage = result.Succeeded ? "Thank you for confirming your email." : "Error confirming your email.";
+            code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
+        }
+        catch (FormatException)
+        {
+            // A mangled or hostile code is a bad link, not a server fault.
+            statusMessage = "Error confirming your email.";
+            return;
+        }
+
+        var result = await UserManager.ConfirmEmailAsync(user, code);
+        if (!result.Succeeded)
+        {
+            statusMessage = "Error confirming your email.";
+            return;
+        }
+
+        confirmed = true;
+        statusMessage = "Thank you for confirming your email.";
+
+        // After signing in, the user returns to where they started. Only a local path is honoured, so
+        // the link can never lead off-site.
+        if (IsLocalPath(ReturnUrl))
+        {
+            continueUrl = "Account/Login?ReturnUrl=" + Uri.EscapeDataString(ReturnUrl);
         }
     }
 
+    private static bool IsLocalPath([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? url) =>
+        !string.IsNullOrEmpty(url)
+        && url[0] == '/'
+        && !url.StartsWith("//", StringComparison.Ordinal)
+        && !url.StartsWith("/\\", StringComparison.Ordinal);
 }
