@@ -133,7 +133,11 @@
         try
         {
             errors = [];
-            var request = new SaveSubscriptionRequest(form.EmailEnabled, form.SlackEnabled, form.SlackWebhookUrl);
+            // Only submit a webhook when Slack is on. When it's off the service keeps whatever valid webhook is already
+            // stored (its one-directional retention), so a value typed then hidden by toggling Slack off is never
+            // persisted and a brand-new email-only subscription never inherits the prefill.
+            var webhook = form.SlackEnabled ? form.SlackWebhookUrl : null;
+            var request = new SaveSubscriptionRequest(form.EmailEnabled, form.SlackEnabled, webhook);
             var result = await SubscriptionService.SaveSubscriptionAsync(UserId, FeedId, request);
             if (result.IsError)
             {

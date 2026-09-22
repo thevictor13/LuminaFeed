@@ -149,6 +149,29 @@ public sealed class SubscribeDialogComponentTests : BunitContext
     }
 
     [Fact]
+    public async Task Save_BadWebhookTypedThenSlackToggledOff_PersistsEmailOnly_WithoutTheWebhook()
+    {
+        var cut = RenderDialog();
+        cut.WaitForElement(".modal");
+        cut.Find("#sub-slack").Change(true);
+        cut.WaitForElement("#sub-webhook").Change("https://example.com/not-slack");
+        cut.Find("#sub-slack").Change(false);   // toggle Slack back off — the typed webhook is now hidden
+
+        await cut.Find(".modal form").SubmitAsync();
+
+        // The hidden bad value is never submitted, so the save succeeds as email-only rather than erroring.
+        cut.WaitForAssertion(() =>
+        {
+            using var ctx = _db.CreateDbContext();
+            var row = Assert.Single(ctx.Subscriptions);
+            Assert.True(row.EmailEnabled);
+            Assert.False(row.SlackEnabled);
+            Assert.Null(row.SlackWebhookUrl);
+        });
+        Assert.True(_lastChanged);
+    }
+
+    [Fact]
     public async Task PerChannelUnsubscribe_TurningEmailOff_KeepsTheSlackSubscription()
     {
         await RealService().SaveSubscriptionAsync(_user.Id, _feed.Id, new SaveSubscriptionRequest(true, true, ValidWebhook));

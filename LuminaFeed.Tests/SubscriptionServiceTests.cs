@@ -275,6 +275,25 @@ public sealed class SubscriptionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveSubscriptionAsync_SlackOffWithAMalformedWebhook_IsRejected_AndStoresNothing()
+    {
+        var user = _db.AddUser();
+        var feed = AddFeed();
+
+        // Slack is off, but a non-Slack URL is still supplied (e.g. typed then hidden by toggling Slack off). It must
+        // be rejected rather than silently stored, so it can never pollute the LastOrDefault prefill.
+        var result = await CreateService().SaveSubscriptionAsync(
+            user.Id, feed.Id, new SaveSubscriptionRequest(EmailEnabled: true, SlackEnabled: false, "https://evil.example.com/x"));
+
+        Assert.True(result.IsError);
+        Assert.Contains(
+            result.Errors,
+            e => e.Type == ErrorType.Validation && e.Code == nameof(SaveSubscriptionRequest.SlackWebhookUrl));
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Subscriptions);
+    }
+
+    [Fact]
     public async Task SaveSubscriptionAsync_NoChannel_IsAValidationError_AndStoresNothing()
     {
         var user = _db.AddUser();

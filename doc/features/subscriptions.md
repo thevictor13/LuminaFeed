@@ -46,10 +46,14 @@ A **Bootstrap-styled modal driven entirely by Blazor** — rendered with `@if (V
 the same `ErrorList` pattern as the admin forms:
 
 - **At least one channel** must be enabled (else *"Enable at least one notification channel, or unsubscribe."*).
-- When **Slack is on**, the webhook is **required**, `≤ Subscription.SlackWebhookUrlMaxLength` (2048), and must be a
-  genuine Slack incoming webhook — an absolute **https** URL beginning with `Subscription.SlackWebhookUrlPrefix`
-  (`https://hooks.slack.com/services`), the single source for that check. This enforces the
-  `SlackEnabled ⇒ SlackWebhookUrl` invariant the `Subscription` entity documents but does not enforce.
+- When **Slack is on**, the webhook is **required**. This enforces the `SlackEnabled ⇒ SlackWebhookUrl` invariant the
+  `Subscription` entity documents but does not enforce.
+- **Whenever a webhook is supplied — Slack on *or* off** — it must be `≤ Subscription.SlackWebhookUrlMaxLength` (2048)
+  and a genuine Slack incoming webhook: an absolute **https** URL beginning with `Subscription.SlackWebhookUrlPrefix`
+  (`https://hooks.slack.com/services`), the single source for that check. Validating the format independently of the
+  switch means a stale or malformed value can never be persisted — so it can never pollute the `LastOrDefault` prefill.
+  (The dialog also drops the webhook from the request when Slack is off, so the stored value is retained rather than
+  overwritten; the service normalizes blank input to null before validating, so an empty field is simply "no webhook".)
 
 ## Service (`Services/Subscriptions/ISubscriptionService` → `SubscriptionService`)
 

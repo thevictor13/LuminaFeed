@@ -18,14 +18,20 @@ public sealed class SaveSubscriptionRequestValidator : AbstractValidator<SaveSub
             .Must((r, _) => r.EmailEnabled || r.SlackEnabled)
             .WithMessage("Enable at least one notification channel, or unsubscribe.");
 
-        // The webhook only matters when Slack is on. Stop at the first failure so an empty field isn't also
-        // reported as "not a Slack hook". Length is the entity's own column limit, so it can't drift from the schema.
-        RuleFor(r => r.SlackWebhookUrl).Cascade(CascadeMode.Stop)
+        // A webhook is required when Slack is on.
+        RuleFor(r => r.SlackWebhookUrl)
             .NotEmpty().WithMessage("A Slack webhook URL is required when Slack notifications are on.")
+            .When(r => r.SlackEnabled);
+
+        // Whenever a webhook is supplied — Slack on OR off — it must be a genuine, in-length Slack hook, so a stale
+        // or malformed value can never be persisted (and so can never pollute the LastOrDefault prefill). The service
+        // normalizes the URL to null-if-blank before validating, so this only runs when a real value is present.
+        // Length is the entity's own column limit, so it can't drift from the schema.
+        RuleFor(r => r.SlackWebhookUrl).Cascade(CascadeMode.Stop)
             .MaximumLength(Subscription.SlackWebhookUrlMaxLength)
             .Must(BeSlackWebhook)
             .WithMessage($"The webhook must be a Slack incoming webhook (it must start with {Subscription.SlackWebhookUrlPrefix}).")
-            .When(r => r.SlackEnabled);
+            .When(r => !string.IsNullOrWhiteSpace(r.SlackWebhookUrl));
     }
 
     /// <summary>A genuine Slack incoming webhook: an absolute https URL under the Slack services host.</summary>
