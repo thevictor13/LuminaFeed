@@ -91,9 +91,37 @@ public sealed class PublicPagesTests
         Assert.Equal(1, CountOf(html, ">Unsubscribe</button>"));
         Assert.Equal(SeededFeeds - 1, CountOf(html, ">Subscribe</button>"));
         Assert.DoesNotContain("Account/Login?ReturnUrl", html);
-        // Home is the only page that persists state, so this marker means the prerendered catalogue and
-        // subscribed ids are handed to the interactive circuit instead of being re-queried.
+        // Home persists the user's subscribed ids for the interactive circuit — and nothing bulky (see below).
         Assert.Contains("Blazor-Server-Component-State", html);
+        Assert.InRange(PersistedStateBytes(html), 1, PersistedStateBudget);
+    }
+
+    /// <summary>
+    /// Persisted component state is embedded in the page and sent back to the server inside the circuit-start
+    /// message, which SignalR rejects above 32 KB — after which the circuit is dead and nothing on the page is
+    /// interactive. Persisting the whole catalogue produced ~87 KB and did exactly that. Keep the payload small.
+    /// </summary>
+    private const int PersistedStateBudget = 8 * 1024;
+
+    [Fact]
+    public async Task Home_PersistedState_StaysFarBelowTheCircuitMessageLimit()
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient();
+
+        var html = await client.GetStringAsync("/");
+
+        Assert.InRange(PersistedStateBytes(html), 0, PersistedStateBudget);
+    }
+
+    private static int PersistedStateBytes(string html)
+    {
+        const string start = "<!--Blazor-Server-Component-State:";
+        var from = html.IndexOf(start, StringComparison.Ordinal);
+        if (from < 0)
+            return 0;
+        var to = html.IndexOf("-->", from, StringComparison.Ordinal);
+        return to - from - start.Length;
     }
 
     private static int CountOf(string html, string fragment) => html.Split(fragment).Length - 1;

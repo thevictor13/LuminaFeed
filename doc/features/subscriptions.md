@@ -19,9 +19,12 @@ to enter another one.
 
 `Home.razor` runs with `@rendermode InteractiveServer`, so a click updates just that button (it is disabled while its
 call is in flight, and further clicks are ignored meanwhile). The user id is read from the **authenticated principal**
-(`ClaimTypes.NameIdentifier`) — never from client input. The prerendered catalogue and the user's subscribed ids are
-carried into the circuit with `[PersistentState]`, so the cards don't flash back to "Loading…" and nothing is queried
-twice. Service errors surface in the shared `ErrorList` alert at the top of the page (a card far down the list may
+(`ClaimTypes.NameIdentifier`) — never from client input. The user's subscribed ids are carried from the prerender into
+the circuit with `[PersistentState]` (so the buttons don't flip while the circuit starts); the catalogue itself is
+**re-queried** on the interactive render — persisted state travels back to the server inside the circuit-start
+message, which SignalR caps at 32 KB, and persisting 115 feed summaries (~87 KB) killed every circuit at start, leaving
+the page static (found in manual testing after P1.R; `PublicPagesTests` now keeps the payload under 8 KB). Service
+errors surface in the shared `ErrorList` alert at the top of the page (a card far down the list may
 have to scroll up to see it — revisited with the card paging of B1). Every button carries an accessible name
 (`aria-label="Subscribe to <feed>"` / `"Unsubscribe from <feed>"`), since a page full of otherwise identical buttons
 is unusable with a screen reader.

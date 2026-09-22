@@ -60,9 +60,13 @@ else
 
     [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
 
-    // Carried from the prerender into the interactive circuit, so the cards don't flash back to "Loading…"
-    // (and the catalogue isn't queried twice) when the circuit takes over.
-    [PersistentState] public IReadOnlyList<CategoryFeeds>? Categories { get; set; }
+    // The catalogue is deliberately NOT persisted across the prerender → circuit hand-off: persisted state travels
+    // back to the server inside the circuit-start message, which SignalR caps at 32 KB, and 115 feed summaries
+    // came to ~87 KB — the circuit died on every page load and nothing was ever interactive. One fast query on
+    // the interactive render is the right price; PublicPagesTests keeps the persisted payload small.
+    private IReadOnlyList<CategoryFeeds>? Categories { get; set; }
+
+    // The user's subscribed feed ids are small (one Guid each) and worth carrying over, so the buttons don't flip.
     [PersistentState] public HashSet<Guid>? SubscribedIds { get; set; }
 
     private HashSet<Guid> SubscribedFeedIds => SubscribedIds ??= [];
@@ -81,7 +85,7 @@ else
             "Account/Login",
             new Dictionary<string, object?> { ["ReturnUrl"] = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri) });
 
-        Categories ??= await FeedService.ListByCategoryAsync();
+        Categories = await FeedService.ListByCategoryAsync();
         SubscribedIds ??= [.. await SubscriptionService.GetSubscribedFeedIdsAsync(userId)];
     }
 

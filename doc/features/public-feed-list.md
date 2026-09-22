@@ -9,10 +9,11 @@ with **B1–B3**, and the per-feed article page with **B4**.
 - Anonymous-accessible. Renders one `<section>` per category (heading + a responsive Bootstrap card grid:
   1 column on phones → 5 per row on wide screens).
 - States: _loading_, _"No feeds have been added yet."_ for an empty catalogue, otherwise the grouped cards.
-- Since S3 the page runs with `@rendermode InteractiveServer` (for the per-card subscribe button) and hands its
-  prerendered data to the circuit via `[PersistentState]` — see [Subscriptions](./subscriptions.md). That payload
-  carries every `FeedSummary` (including feed URLs, which are public anyway); it is avoidable weight that the card
-  paging of B1 will shrink.
+- Since S3 the page runs with `@rendermode InteractiveServer` (for the per-card subscribe button). It persists only
+  the user's subscribed ids across the prerender → circuit hand-off and re-queries the catalogue on the interactive
+  render: persisted state is sent back in the circuit-start message, which SignalR caps at 32 KB, and persisting the
+  whole catalogue (~87 KB) made every circuit fail at start — nothing on the page was interactive. A page test keeps
+  the persisted payload under 8 KB. See [Subscriptions](./subscriptions.md).
 - Replaces the template's "Hello, world" page. The template sample pages (`Counter`, `Weather`, `Auth`), their nav
   links, the layout's "About" link and the dead `System.Net.Http` imports were removed; the nav now has a single
   **Feeds** entry (plus Admin / account links).
