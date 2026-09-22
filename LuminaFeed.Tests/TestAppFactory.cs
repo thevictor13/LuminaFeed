@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace LuminaFeed.Tests;
 
@@ -25,6 +26,7 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
 
     private readonly bool _validUnsubscribe;
     private readonly bool _seedAdmin;
+    private readonly bool _hostPollingLoop;
     private readonly Action<IServiceCollection>? _configureServices;
 
     // Next to the test binaries (gitignored bin/), so a test run never writes outside the repository.
@@ -32,12 +34,21 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
 
     /// <param name="validUnsubscribe">False blanks the HMAC secret to exercise <c>ValidateOnStart</c>.</param>
     /// <param name="seedAdmin">True seeds a confirmed admin (<see cref="AdminEmail"/>) that tests can sign in as.</param>
+    /// <param name="hostPollingLoop">
+    /// True keeps the real <see cref="FeedPollingBackgroundService"/> hosted (to prove it is). Off by default: a live
+    /// loop polls the same database the test is driving, and would race a test's own polling cycles for the
+    /// "first poll" of a feed the test just subscribed to.
+    /// </param>
     /// <param name="configureServices">Extra test doubles, applied after the defaults below.</param>
     public TestAppFactory(
-        bool validUnsubscribe = true, bool seedAdmin = false, Action<IServiceCollection>? configureServices = null)
+        bool validUnsubscribe = true,
+        bool seedAdmin = false,
+        bool hostPollingLoop = false,
+        Action<IServiceCollection>? configureServices = null)
     {
         _validUnsubscribe = validUnsubscribe;
         _seedAdmin = seedAdmin;
+        _hostPollingLoop = hostPollingLoop;
         _configureServices = configureServices;
         // Read imperatively by Program before Build, so it must come from an early config source
         // (environment variables) rather than a ConfigureAppConfiguration source added during Build.
@@ -58,7 +69,8 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
                 ["Smtp:Port"] = "25",
                 ["Smtp:FromAddress"] = "no-reply@luminafeed.local",
                 ["Smtp:FromName"] = "LuminaFeed",
-                ["Polling:IntervalSeconds"] = "60",
+                // A day: even when the loop is hosted, no tick lands during a test.
+                ["Polling:IntervalSeconds"] = "86400",
                 ["Unsubscribe:HmacSecret"] = _validUnsubscribe ? "test-secret-0123456789" : "",
                 ["AdminSeed:Email"] = _seedAdmin ? AdminEmail : "",
                 ["AdminSeed:Password"] = _seedAdmin ? AdminPassword : "",
@@ -75,7 +87,14 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
                 .UseSqlite($"DataSource={_dbPath}")
                 .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
-            // The polling loop runs in this host too; it must never reach the real catalogue's publishers.
+            if (!_hostPollingLoop)
+            {
+                // Only this descriptor goes; the web host's own hosted service stays.
+                services.Remove(services.Single(d =>
+                    d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(FeedPollingBackgroundService)));
+            }
+
+            // Whatever polls in this host must never reach the real catalogue's publishers.
             services.RemoveAll<IFeedFetcher>();
             services.AddSingleton<IFeedFetcher, NoNetworkFeedFetcher>();
 
@@ -98,11 +117,11 @@ internal sealed class TestAppFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection", null);
 
         // Microsoft.Data.Sqlite pools connections, which keeps the file locked (and undeletable on
-        // Windows) until the pools are cleared.
-        SqliteConnection.ClearAllPools();
+        // Windows) until this database's pool is cleared.
+        SqliteConnection.ClearPool(new SqliteConnection($"DataSource={_dbPath}"));
         foreach (var path in new[] { _dbPath, _dbPath + "-shm", _dbPath + "-wal" })
         {
-            try { File.Delete(path); } catch (IOException) { /* best effort */ }
+            try { File.Delete(path); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { /* best effort */ }
         }
     }
 }

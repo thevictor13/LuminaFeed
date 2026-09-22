@@ -101,5 +101,7 @@ multi-feed subscriber, broken-feed isolation, cancellation, column fit; `LimitsT
 to the mapped columns), `FeedPollingBackgroundServiceTests`
 (immediate first pass, clean stop, keeps ticking after a throwing pass, missed ticks coalesce, fresh scope per pass —
 all on a `FakeTimeProvider`, so no test waits for real time), `OptionsTests`,
-`HostBootTests` (the loop is hosted and healthy). Host-booting tests swap in a `NoNetworkFeedFetcher`, so no test
-ever reaches a real publisher.
+`HostBootTests` (the loop is hosted and running). Host-booting tests swap in a `NoNetworkFeedFetcher`, so no test
+ever reaches a real publisher — and, apart from that one hosting check, `TestAppFactory` removes the loop's hosted
+service so a live timer can never race a test's own polling cycles against the same database (`WalkingSkeletonTests`
+drives its own `FeedPollingBackgroundService` instance by hand).

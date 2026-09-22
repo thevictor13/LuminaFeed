@@ -1,5 +1,6 @@
 using System.Net;
 using LuminaFeed.Data;
+using LuminaFeed.Data.Seed;
 using LuminaFeed.Services.Feeds;
 using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Identity;
@@ -12,6 +13,9 @@ namespace LuminaFeed.Tests;
 [Collection(HostCollection.Name)]
 public sealed class PublicPagesTests
 {
+    // Expected counts come from the embedded catalogue, so adding a feed to the research JSON doesn't break these.
+    private static readonly int SeededFeeds = SeedCatalogLoader.LoadEmbedded().Feeds.Count;
+
     [Fact]
     public async Task Home_Anonymous_ShowsSeededFeedsAsCardsGroupedByCategory()
     {
@@ -24,9 +28,8 @@ public sealed class PublicPagesTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("World News", html);
         Assert.Contains("BBC News", html);
-        Assert.Contains("feed-card", html);
         // Every seeded feed gets a card.
-        Assert.Equal(115, html.Split("class=\"card h-100 feed-card\"").Length - 1);
+        Assert.Equal(SeededFeeds, CountOf(html, "class=\"card h-100 feed-card\""));
     }
 
     [Fact]
@@ -60,10 +63,10 @@ public sealed class PublicPagesTests
         var html = await client.GetStringAsync("/");
 
         // Anonymous users are treated as having no subscriptions: every card offers Subscribe, as a
-        // link to the login page carrying the location to return to.
-        Assert.Equal(115, CountOf(html, ">Subscribe</a>"));
+        // link to the login page carrying the location to return to, and no card shows the red Unsubscribe.
+        Assert.Equal(SeededFeeds, CountOf(html, ">Subscribe</a>"));
         Assert.Contains("href=\"Account/Login?ReturnUrl=%2F\"", html);
-        Assert.DoesNotContain("Unsubscribe", html);
+        Assert.Equal(0, CountOf(html, "btn-danger"));
     }
 
     [Fact]
@@ -86,9 +89,10 @@ public sealed class PublicPagesTests
 
         Assert.Equal(1, CountOf(html, "btn-danger"));
         Assert.Equal(1, CountOf(html, ">Unsubscribe</button>"));
-        Assert.Equal(114, CountOf(html, ">Subscribe</button>"));
+        Assert.Equal(SeededFeeds - 1, CountOf(html, ">Subscribe</button>"));
         Assert.DoesNotContain("Account/Login?ReturnUrl", html);
-        // The prerendered catalogue is handed to the interactive circuit instead of being re-queried.
+        // Home is the only page that persists state, so this marker means the prerendered catalogue and
+        // subscribed ids are handed to the interactive circuit instead of being re-queried.
         Assert.Contains("Blazor-Server-Component-State", html);
     }
 

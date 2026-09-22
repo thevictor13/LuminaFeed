@@ -33,7 +33,12 @@ internal static partial class TestSignIn
             ["Input.Password"] = password,
         }));
 
-        // A successful sign-in redirects away from the login page; a failure re-renders it (200).
+        // A successful sign-in redirects away from the login page; a failure re-renders it (200)...
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+        // ...but lockout and two-factor prompts redirect too, so prove the cookie really signs the client in:
+        // an authorised page renders instead of bouncing to login.
+        using var manage = await client.GetAsync("/Account/Manage");
+        Assert.Equal(HttpStatusCode.OK, manage.StatusCode);
     }
 }

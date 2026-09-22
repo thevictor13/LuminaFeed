@@ -2,9 +2,11 @@ using System.Net;
 using System.Reflection;
 using LuminaFeed.Authorization;
 using LuminaFeed.Components.Admin;
+using LuminaFeed.Services.Categories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace LuminaFeed.Tests;
 
@@ -47,6 +49,12 @@ public sealed class AdminPagesTests
         using var factory = new TestAppFactory(seedAdmin: true);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await TestSignIn.SignInAsync(client, TestAppFactory.AdminEmail, TestAppFactory.AdminPassword);
+        CategorySummary worldNews;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var listed = await scope.ServiceProvider.GetRequiredService<ICategoryService>().ListAsync();
+            worldNews = listed.Single(c => c.Name == "World News");
+        }
 
         // Prerendered output proves the pages resolve their services and query the real database.
         var categories = await client.GetStringAsync("/admin/categories");
@@ -55,7 +63,8 @@ public sealed class AdminPagesTests
 
         var feeds = await client.GetStringAsync("/admin/feeds");
         Assert.Contains("Add a feed", feeds);
-        Assert.Contains("<option value=\"", feeds);
+        // The category dropdown is populated from the seeded categories.
+        Assert.Contains($"<option value=\"{worldNews.Id}\">World News</option>", feeds);
         Assert.Contains("BBC News", feeds);
     }
 }

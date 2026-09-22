@@ -7,18 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace LuminaFeed.Tests;
 
-/// <summary>Captures log entries so tests can assert on level/exception.</summary>
-internal sealed class ListLogger<T> : ILogger<T>
-{
-    public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
-
-    IDisposable? ILogger.BeginScope<TState>(TState state) => null;
-    public bool IsEnabled(LogLevel logLevel) => true;
-
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-        Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, exception));
-}
-
 public class EmailLayoutTests
 {
     [Fact]

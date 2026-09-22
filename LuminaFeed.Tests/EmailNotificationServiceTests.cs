@@ -4,34 +4,6 @@ using LuminaFeed.Services.Notifications;
 
 namespace LuminaFeed.Tests;
 
-/// <summary>Records what would have been emailed; optionally fails like a dead SMTP server.</summary>
-internal sealed class RecordingMailSender : IMailSender
-{
-    private readonly List<EmailMessage> _sent = [];
-
-    public Exception? FailWith { get; set; }
-
-    /// <summary>Recipients for which sending fails (others succeed).</summary>
-    public HashSet<string> FailFor { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    public IReadOnlyList<EmailMessage> Sent
-    {
-        get { lock (_sent) return [.. _sent]; }
-    }
-
-    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (FailWith is not null)
-            throw FailWith;
-        if (FailFor.Contains(message.ToEmail))
-            throw new InvalidOperationException($"SMTP rejected {message.ToEmail}");
-
-        lock (_sent) _sent.Add(message);
-        return Task.CompletedTask;
-    }
-}
-
 public class EmailNotificationServiceTests
 {
     private readonly RecordingMailSender _mail = new();
@@ -56,7 +28,6 @@ public class EmailNotificationServiceTests
     public void Channel_IsEmail()
     {
         Assert.Same(NotificationChannel.Email, CreateService().Channel);
-        Assert.Equal([NotificationChannel.Email, NotificationChannel.Slack], NotificationChannel.List.OrderBy(c => c.Value));
     }
 
     [Fact]

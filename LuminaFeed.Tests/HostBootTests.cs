@@ -1,7 +1,9 @@
 using LuminaFeed.Data;
+using LuminaFeed.Data.Seed;
 using LuminaFeed.Services.Categories;
 using LuminaFeed.Services.Email;
 using LuminaFeed.Services.Feeds;
+using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
 using Microsoft.AspNetCore.Identity;
@@ -25,7 +27,8 @@ public sealed class HostBootTests
     [Fact]
     public void Host_WithValidConfig_BootsAndResolvesDiGraph()
     {
-        using var factory = new TestAppFactory(validUnsubscribe: true);
+        // The one host test that keeps the real polling loop hosted, to prove Program hosts it.
+        using var factory = new TestAppFactory(validUnsubscribe: true, hostPollingLoop: true);
 
         // Forcing the server to start runs migrations, seeding, and ValidateOnStart.
         using var client = factory.CreateClient();
@@ -38,10 +41,15 @@ public sealed class HostBootTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubscriptionService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedPollingService>());
 
-        // The polling loop is hosted, and running.
+        // Exactly one notification channel is wired up so far: email.
+        var notifier = Assert.Single(factory.Services.GetServices<INotificationService>());
+        Assert.IsType<EmailNotificationService>(notifier);
+        Assert.Same(NotificationChannel.Email, notifier.Channel);
+
+        // The polling loop is hosted and still running (it only ever completes on shutdown).
         var polling = Assert.Single(factory.Services.GetServices<IHostedService>().OfType<FeedPollingBackgroundService>());
         Assert.NotNull(polling.ExecuteTask);
-        Assert.False(polling.ExecuteTask.IsFaulted);
+        Assert.False(polling.ExecuteTask.IsCompleted);
 
         // Seeding ran against the isolated database.
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -54,16 +62,17 @@ public sealed class HostBootTests
         using var factory = new TestAppFactory();
         using var client = factory.CreateClient();
         using var scope = factory.Services.CreateScope();
+        var catalogue = SeedCatalogLoader.LoadEmbedded();
 
         // The context factory (used by application services) and the scoped context (used by Identity
         // and the seeders) must point at the same seeded database.
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
         await using var db = await dbFactory.CreateDbContextAsync();
-        Assert.Equal(115, await db.Feeds.CountAsync());
+        Assert.Equal(catalogue.Feeds.Count, await db.Feeds.CountAsync());
 
         var categories = await scope.ServiceProvider.GetRequiredService<ICategoryService>().ListAsync();
-        Assert.Equal(10, categories.Count);
-        Assert.Equal(115, categories.Sum(c => c.FeedCount));
+        Assert.Equal(catalogue.Categories.Count, categories.Count);
+        Assert.Equal(catalogue.Feeds.Count, categories.Sum(c => c.FeedCount));
     }
 
     [Fact]

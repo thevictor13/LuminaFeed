@@ -63,5 +63,7 @@ re-announced on the next tick. With Papercut running on `localhost:25` that dige
   article without summary/date, empty list, transport failure → error with cause, cancellation.
 - `FeedPollingBackgroundServiceTests` — one notification per subscriber with their own articles, email channel only,
   a failing or throwing recipient doesn't block the others, nothing new → nobody notified, no email service → warning.
-- `WalkingSkeletonTests` — the end-to-end flow above, plus the DI registration of `EmailNotificationService`.
+- `WalkingSkeletonTests` — the end-to-end flow above, driving its own polling-loop instance (the test host does not
+  run the loop on a timer). `HostBootTests` checks the DI registration of `EmailNotificationService`;
+  `NotificationChannelTests` pins the channel enumeration.
 - Host-booting tests replace `IMailSender` with a `RecordingMailSender`, so no test ever opens an SMTP connection.

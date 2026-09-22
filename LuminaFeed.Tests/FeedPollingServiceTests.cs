@@ -336,10 +336,10 @@ public sealed class FeedPollingServiceTests : IDisposable
     }
 
     [Theory]
-    [InlineData("fetch")]
-    [InlineData("parse")]
-    [InlineData("throw")]
-    public async Task PollAsync_OneBrokenFeed_DoesNotStopTheOthers(string failure)
+    [InlineData("fetch", "returned HTTP 503")]
+    [InlineData("parse", "not an RSS, Atom or RDF feed")]
+    [InlineData("throw", "boom")]
+    public async Task PollAsync_OneBrokenFeed_DoesNotStopTheOthers(string failure, string expectedReason)
     {
         var broken = AddFeed("a-broken");
         var healthy = AddFeed("b-healthy");
@@ -358,7 +358,11 @@ public sealed class FeedPollingServiceTests : IDisposable
 
         Assert.Equal([broken.FeedUrl, healthy.FeedUrl], _fetcher.RequestedUrls);
         Assert.Equal("Article 1", Assert.Single(Assert.Single(result).Value).Title);
-        Assert.Contains(_logger.Entries, e => e.Level >= LogLevel.Warning);
+        // The right failure is reported: a fetch or parse failure is a warning that says why, an escaped
+        // exception an error carrying it.
+        Assert.Contains(_logger.Entries, e =>
+            e.Level >= LogLevel.Warning
+            && (e.Message.Contains(expectedReason) || e.Exception?.Message == expectedReason));
     }
 
     [Fact]
