@@ -1,32 +1,19 @@
-@* A Blazor-driven order control. The app loads Bootstrap's CSS but not its JS, so a `data-bs-toggle="dropdown"`
-   menu would never open — open/close is handled here in C#. A transparent full-viewport backdrop closes it on an
-   outside click, and Escape closes it too. Styled with Bootstrap's `.dropdown` / `.dropdown-menu` classes. *@
-<div class="dropdown order-menu" @onkeydown="OnKeyDown">
-    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
-            aria-haspopup="menu" aria-expanded="@(open ? "true" : "false")"
-            aria-label="@($"Order {Label} by")" @onclick="Toggle">
-        Order
-    </button>
-    @if (open)
+@* The public list's per-category order control (B2). A thin wrapper over the shared DropdownMenu: the four
+   FeedOrder options as menu items, the current one marked active. The parent (CategorySection) owns the state. *@
+<DropdownMenu TriggerText="Order" AriaLabel="@($"Order {Label} by")" MenuEnd="true" Class="order-menu">
+    @foreach (var option in Options)
     {
-        <div class="order-backdrop" @onclick="Close"></div>
-        <div class="dropdown-menu dropdown-menu-end show order-menu-list" role="menu">
-            @foreach (var option in Options)
-            {
-                <button type="button" role="menuitem"
-                        class="dropdown-item @(option == Value ? "active" : null)"
-                        aria-current="@(option == Value ? "true" : null)"
-                        @onclick="@(() => SelectAsync(option))">
-                    @FeedOrdering.Label(option)
-                </button>
-            }
-        </div>
+        <button type="button" role="menuitem"
+                class="dropdown-item @(option == Value ? "active" : null)"
+                aria-current="@(option == Value ? "true" : null)"
+                @onclick="@(() => SelectAsync(context, option))">
+            @FeedOrdering.Label(option)
+        </button>
     }
-</div>
+</DropdownMenu>
 
 @code {
     private static readonly FeedOrder[] Options = Enum.GetValues<FeedOrder>();
-    private bool open;
 
     [Parameter] public FeedOrder Value { get; set; }
     [Parameter] public EventCallback<FeedOrder> OnChange { get; set; }
@@ -34,20 +21,10 @@
     /// <summary>Names the control for assistive tech (e.g. the category it orders).</summary>
     [Parameter, EditorRequired] public string Label { get; set; } = default!;
 
-    private void Toggle() => open = !open;
-
-    private void Close() => open = false;
-
-    private async Task SelectAsync(FeedOrder option)
+    private async Task SelectAsync(DropdownMenu.DropdownContext context, FeedOrder option)
     {
-        open = false;
+        await context.Close.InvokeAsync();
         if (option != Value)
             await OnChange.InvokeAsync(option);
-    }
-
-    private void OnKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Escape")
-            open = false;
     }
 }

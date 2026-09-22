@@ -56,7 +56,7 @@ breaking ties, then capped at `maxArticles`.
 
 ## Public card button (`LuminaFeed/Components/Shared/FeedCard.razor`)
 
-Each public card carries a **View articles** link (`href="feed/{id}"`, `aria-label="View {name} articles"`) to this
+Each public card carries a **View articles** link (`href="/feed/{id}"`, `aria-label="View {name} articles"`) to this
 page, alongside the existing external **Visit site** link and the page-supplied **Subscribe** button.
 
 ## Tests

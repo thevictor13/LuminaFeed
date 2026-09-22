@@ -103,7 +103,7 @@ public sealed class CategoryFilterComponentTests : BunitContext
         await cut.Find(Trigger).ClickAsync(new MouseEventArgs());
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".dropdown-menu.show")));
 
-        await cut.Find(".category-filter-backdrop").ClickAsync(new MouseEventArgs());
+        await cut.Find(".menu-backdrop").ClickAsync(new MouseEventArgs());
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dropdown-menu.show")));
     }

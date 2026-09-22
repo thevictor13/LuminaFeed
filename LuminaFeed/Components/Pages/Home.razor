@@ -71,9 +71,9 @@ else
 
     private HashSet<Guid> SubscribedFeedIds => SubscribedIds ??= [];
 
-    // Filter options come from the already-loaded catalogue — no extra query.
-    private IReadOnlyList<(Guid Id, string Name)> filterOptions =>
-        Categories is null ? [] : [.. Categories.Select(c => (c.CategoryId, c.CategoryName))];
+    // Filter options come from the already-loaded catalogue — built once when it loads (below), so no fresh list is
+    // allocated per render and the CategoryFilter's Options parameter keeps a stable identity.
+    private IReadOnlyList<(Guid Id, string Name)> filterOptions = [];
 
     // "All feeds" shows every category; a selection narrows to the one (if it still exists).
     private IReadOnlyList<CategoryFeeds> VisibleCategories =>
@@ -98,6 +98,7 @@ else
             new Dictionary<string, object?> { ["ReturnUrl"] = "/" + NavigationManager.ToBaseRelativePath(NavigationManager.Uri) });
 
         Categories = await FeedService.ListByCategoryAsync();
+        filterOptions = [.. Categories.Select(c => (c.CategoryId, c.CategoryName))];
         SubscribedIds ??= [.. await SubscriptionService.GetSubscribedFeedIdsAsync(userId)];
     }
 

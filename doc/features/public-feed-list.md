@@ -41,7 +41,8 @@ One category's header and its feed cards, owning the per-category interactive st
 - **Layout.** A responsive Bootstrap grid `row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5` — a single row of up
   to five on desktop (`lg`+), wrapping to 3 / 2 / 1 on smaller screens.
 - **Order control (B2).** The header carries an **`OrderMenu`** (see below) whose choice re-sorts this category's
-  feeds. The section holds the selected `FeedOrder` (default popularity-descending, matching the service) and iterates
+  feeds — shown only when the category has **more than one** feed (ordering a single feed is meaningless). The section
+  holds the selected `FeedOrder` (default popularity-descending, matching the service) and iterates
   `FeedOrdering.Sort(Category.Feeds, order).Take(visibleCount)` — a pure in-memory re-sort, like the cap. Re-ordering
   keeps the current "more" count (the same number of cards, reordered). The order is ephemeral (not persisted).
 
@@ -51,11 +52,9 @@ A top-of-page dropdown that narrows the list to one category: **All feeds** (def
 Selecting a category shows only its section, at the deeper cap of 30 (see the page above); "All feeds" restores the
 full grouped view. The choice is ephemeral (not persisted) — it resets on refresh, consistent with B1/B2.
 
-- **No Bootstrap JS**, exactly like `OrderMenu`: it drives open/close in the circuit (a `bool`, a transparent
-  full-viewport backdrop that closes it on an outside click, and Escape), using Bootstrap's `.dropdown` classes for
-  styling only.
-- **Accessible.** The trigger reads `Category: {selection}` with `aria-label="Filter feeds by category"`,
-  `aria-haspopup`, `aria-expanded`; each option is a `role="menuitem"` button, the current one `active` + `aria-current`.
+- Built on the shared **`DropdownMenu`** primitive (below); it supplies the trigger text `Category: {selection}`, the
+  `aria-label="Filter feeds by category"`, and the items — **All feeds** plus one `role="menuitem"` button per
+  category, the current one marked `active` + `aria-current`.
 - Owns no data: the parent (`Home`) supplies the `Options` (id + name, from the already-loaded catalogue) and the
   `Selected` id, and receives the choice through an `EventCallback<Guid?>` (null = "All feeds").
 
@@ -64,18 +63,30 @@ full grouped view. The choice is ephemeral (not persisted) — it resets on refr
 A per-category dropdown: **Most popular** (default) · **Least popular** · **Name (A–Z)** · **Name (Z–A)**, backed by
 the `FeedOrder` enum and the pure `FeedOrdering.Sort` / `FeedOrdering.Label` helpers (`FeedOrdering.cs`).
 
-- **No Bootstrap JS.** `App.razor` loads Bootstrap's CSS but not its JS bundle, so a `data-bs-toggle="dropdown"` menu
-  would never open. `OrderMenu` drives open/close itself in the circuit: a `bool`, a transparent full-viewport
-  **backdrop** that closes it on an outside click (z-index layering in scoped CSS), and **Escape** to close — using
-  Bootstrap's `.dropdown` / `.dropdown-menu` classes purely for styling.
-- **Accessible.** The trigger names its category (`aria-label="Order {category} by"`, `aria-haspopup`,
-  `aria-expanded`); each option is a `role="menuitem"` button, the current one marked `active` + `aria-current`.
+- Built on the shared **`DropdownMenu`** primitive (below); it supplies the trigger text `Order`, an
+  `aria-label="Order {category} by"`, and the four `FeedOrder` options as `role="menuitem"` buttons, the current one
+  marked `active` + `aria-current`.
 - Emits the chosen `FeedOrder` through an `EventCallback<FeedOrder>`; the parent (`CategorySection`) owns the state.
+
+## Dropdown primitive (`LuminaFeed/Components/Shared/DropdownMenu.razor`)
+
+The open/close behaviour shared by `OrderMenu` and `CategoryFilter` lives here, so it is defined once.
+
+- **No Bootstrap JS.** `App.razor` loads Bootstrap's CSS but not its JS bundle, so a `data-bs-toggle="dropdown"` menu
+  would never open. `DropdownMenu` drives open/close itself in the circuit: a `bool`, a transparent full-viewport
+  **backdrop** (`.menu-backdrop`) that closes it on an outside click (z-index layering in scoped CSS), and **Escape**
+  to close — using Bootstrap's `.dropdown` / `.dropdown-menu` classes purely for styling.
+- The caller passes `TriggerText`, `AriaLabel`, an optional `MenuEnd` (right-align) and the items as child content;
+  each item receives a small context whose `Close` shuts the menu on selection.
+- **Accessibility.** The trigger carries `aria-haspopup="menu"` + `aria-expanded`; items are `role="menuitem"`
+  buttons. **Known limitation:** the menu is Escape-to-close and its items are Tab-reachable, but it does not
+  implement the ARIA menu pattern's arrow-key roving focus or focus-into-menu-on-open (deferred; a document-only note
+  for now, since correct roving focus over caller-supplied items needs more than a small change).
 
 ## Card (`LuminaFeed/Components/Shared/FeedCard.razor`)
 
 Shows the feed's **image when it has one** (`ImageUrl`, lazy-loaded, no referrer, letterboxed via scoped CSS), its
-name, its description when present, a **View articles** button (internal, `feed/{id}`, `aria-label="View {name}
+name, its description when present, a **View articles** button (internal, `/feed/{id}`, `aria-label="View {name}
 articles"`, → the [feed page](./feed-page.md)) and a **Visit site** button (`SiteUrl`, new tab,
 `rel="noopener noreferrer"`). An `Actions` render fragment lets pages add buttons next to them (used by the subscribe
 button), so a card carries three buttons: View articles, Visit site and Subscribe.

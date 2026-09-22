@@ -1,11 +1,11 @@
 /* Bootstrap's dropdown z-index is 1000; the backdrop sits at that level to catch outside clicks, and the open
    menu sits just above it. No Bootstrap JS is involved — open/close is driven by the component. */
-.order-backdrop {
+.menu-backdrop {
     position: fixed;
     inset: 0;
     z-index: 1000;
 }
 
-.order-menu-list {
+.dropdown-menu.show {
     z-index: 1001;
 }

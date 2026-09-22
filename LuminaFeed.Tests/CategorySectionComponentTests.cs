@@ -173,7 +173,7 @@ public sealed class CategorySectionComponentTests : BunitContext
         await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".dropdown-menu.show")));
 
-        await cut.Find(".order-backdrop").ClickAsync(new MouseEventArgs());
+        await cut.Find(".menu-backdrop").ClickAsync(new MouseEventArgs());
 
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dropdown-menu.show")));
     }

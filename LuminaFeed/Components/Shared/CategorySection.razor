@@ -6,7 +6,11 @@
 <section class="mb-5">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap border-bottom pb-2 mb-3">
         <h2 class="h4 mb-0">@Category.CategoryName</h2>
-        <OrderMenu Value="order" Label="@Category.CategoryName" OnChange="OnOrderChanged"/>
+        @* Ordering is meaningless for a single feed, so the control only appears when there is something to order. *@
+        @if (Category.Feeds.Count > 1)
+        {
+            <OrderMenu Value="order" Label="@Category.CategoryName" OnChange="OnOrderChanged"/>
+        }
     </div>
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">

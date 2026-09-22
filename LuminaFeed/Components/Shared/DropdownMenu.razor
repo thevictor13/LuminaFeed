@@ -1,0 +1,58 @@
+@* A Blazor-driven dropdown primitive shared by the public list's OrderMenu (B2) and CategoryFilter (B3). The app
+   loads Bootstrap's CSS but not its JS, so a `data-bs-toggle="dropdown"` menu would never open — open/close is
+   handled here in C#: a transparent full-viewport backdrop closes it on an outside click, and Escape closes it too.
+   Styled with Bootstrap's `.dropdown` / `.dropdown-menu` classes. The caller supplies the trigger text, an
+   aria-label and the menu items as child content; each item receives a context whose `Close` shuts the menu.
+
+   Known limitation (a11y): the menu is Escape-to-close and its items are Tab-reachable, but it does not implement
+   the ARIA menu pattern's arrow-key roving focus / focus-into-menu-on-open. See doc/features/public-feed-list.md. *@
+<div class="dropdown @Class" @onkeydown="OnKeyDown">
+    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            aria-haspopup="menu" aria-expanded="@(open ? "true" : "false")"
+            aria-label="@AriaLabel" @onclick="Toggle">
+        @TriggerText
+    </button>
+    @if (open)
+    {
+        <div class="menu-backdrop" @onclick="Close"></div>
+        <div class="dropdown-menu show @(MenuEnd ? "dropdown-menu-end" : null)" role="menu">
+            @ChildContent(_context)
+        </div>
+    }
+</div>
+
+@code {
+    private bool open;
+    private DropdownContext _context = default!;
+
+    /// <summary>The visible text on the trigger button.</summary>
+    [Parameter, EditorRequired] public string TriggerText { get; set; } = default!;
+
+    /// <summary>The trigger's accessible name (e.g. what it filters or orders).</summary>
+    [Parameter, EditorRequired] public string AriaLabel { get; set; } = default!;
+
+    /// <summary>Right-aligns the menu (Bootstrap's <c>.dropdown-menu-end</c>).</summary>
+    [Parameter] public bool MenuEnd { get; set; }
+
+    /// <summary>An extra class on the outer <c>.dropdown</c> element (a marker for the caller).</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>The menu items; each receives a <see cref="DropdownContext"/> whose <c>Close</c> shuts the menu.</summary>
+    [Parameter, EditorRequired] public RenderFragment<DropdownContext> ChildContent { get; set; } = default!;
+
+    protected override void OnInitialized() =>
+        _context = new DropdownContext(EventCallback.Factory.Create(this, Close));
+
+    private void Toggle() => open = !open;
+
+    private void Close() => open = false;
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            open = false;
+    }
+
+    /// <summary>Handed to each menu item so a selection can close the menu.</summary>
+    public sealed record DropdownContext(EventCallback Close);
+}
