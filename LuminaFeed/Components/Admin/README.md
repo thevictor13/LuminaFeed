@@ -2,7 +2,10 @@
 
 Admin-only Blazor components, guarded by the `"Admin"` authorization policy (backed by `ApplicationUser.IsAdmin`).
 
-**Implemented (S1):** `AdminHome` (`/admin`), `Categories` (`/admin/categories`) and `Feeds` (`/admin/feeds`) —
-minimal add + list. See `doc/features/admin-catalog-management.md`.
+**Implemented:** `AdminHome` (`/admin`), `Categories` (`/admin/categories`) and `Feeds` (`/admin/feeds`) — full CRUD
+(add / list / edit / delete, S1 + A1/A2; see `doc/features/admin-catalog-management.md`); `Users` (`/admin/users`) —
+list users + their subscriptions, remove a subscription, delete a registration (A3; see
+`doc/features/admin-user-management.md`).
 
-**Planned (Phase 2):** category/feed edit + delete (A1/A2) and user management (A3).
+**Planned (Phase 2):** grant/revoke `IsAdmin` from the user page (deferred; needs the `UpdateSecurityStampAsync`
+guard).

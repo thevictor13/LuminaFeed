@@ -15,6 +15,7 @@ using LuminaFeed.Services.Feeds;
 using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
+using LuminaFeed.Services.Users;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IFeedService, FeedService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IUserAdminService, UserAdminService>();
 
 // Feed polling: a typed HttpClient fetcher, one scoped polling pass, and the background loop that drives it.
 builder.Services.TryAddSingleton(TimeProvider.System);

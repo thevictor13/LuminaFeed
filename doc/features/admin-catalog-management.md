@@ -4,12 +4,15 @@ Admins can manage the feed catalogue: both **categories** (**A1**) and **feeds**
 list, **edit** and **delete**. Editing and deleting happen in a **modal dialog** opened from the row, so the list
 stays in place.
 
+Managing the registered **users** (listing them, removing their subscriptions, deleting registrations) is a separate
+page — see [Admin User Management](./admin-user-management.md) (**A3**).
+
 ## Pages (`LuminaFeed/Components/Admin/`)
 
 All three require the `Admin` policy (see [Admin Authorization](./admin-authorization.md)); anonymous requests are
 redirected to the login page with a `ReturnUrl`.
 
-- **`/admin`** (`AdminHome`) — links to the two management pages.
+- **`/admin`** (`AdminHome`) — links to the catalogue and user-management pages.
 - **`/admin/categories`** (`Categories`) — add form (name, optional description) above a table of all categories with
   their feed counts. Each row has **Edit** and **Delete** actions (**A1**). Delete is **disabled while the category
   still has feeds** (`FeedCount > 0`) — `Feed → Category` is `Restrict`, so those feeds must be moved or deleted first.

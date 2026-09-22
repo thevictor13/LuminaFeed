@@ -18,6 +18,7 @@ public sealed class AdminPagesTests
     [InlineData(typeof(AdminHome), "/admin")]
     [InlineData(typeof(Categories), "/admin/categories")]
     [InlineData(typeof(Feeds), "/admin/feeds")]
+    [InlineData(typeof(Users), "/admin/users")]
     public void AdminPage_IsRouted_AndRequiresTheAdminPolicy(Type page, string route)
     {
         Assert.Contains(page.GetCustomAttributes<RouteAttribute>(), r => r.Template == route);
@@ -30,6 +31,7 @@ public sealed class AdminPagesTests
     [InlineData("/admin")]
     [InlineData("/admin/categories")]
     [InlineData("/admin/feeds")]
+    [InlineData("/admin/users")]
     public async Task AdminPage_AnonymousRequest_IsRedirectedToLogin(string route)
     {
         using var factory = new TestAppFactory();
@@ -66,5 +68,17 @@ public sealed class AdminPagesTests
         // The category dropdown is populated from the seeded categories.
         Assert.Contains($"<option value=\"{worldNews.Id}\">World News</option>", feeds);
         Assert.Contains("BBC News", feeds);
+    }
+
+    [Fact]
+    public async Task UsersPage_SignedInAdmin_ListsTheSignedInUser()
+    {
+        using var factory = new TestAppFactory(seedAdmin: true);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await TestSignIn.SignInAsync(client, TestAppFactory.AdminEmail, TestAppFactory.AdminPassword);
+
+        // Prerendered output proves the page resolves IUserAdminService and queries the real database.
+        var users = await client.GetStringAsync("/admin/users");
+        Assert.Contains(TestAppFactory.AdminEmail, users);
     }
 }

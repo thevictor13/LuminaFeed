@@ -90,7 +90,7 @@ dependencies are called out.
   the subscriptions/articles that go with it. Plan:
   [`A1-A2-category-and-feed-crud.md`](./A1-A2-category-and-feed-crud.md); feature:
   [`../features/admin-catalog-management.md`](../features/admin-catalog-management.md).
-- [ ] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_ **Security-stamp guard (from G0.9):** the admin claim is baked into the auth cookie by `AdminClaimsPrincipalFactory`, so when A3 toggles a user's `IsAdmin`, it must call `UserManager.UpdateSecurityStampAsync` so `IdentityRevalidatingAuthenticationStateProvider` regenerates the principal — otherwise the change won't take effect until the user's next sign-in.
+- [x] 🗂 **A3 — User management** (list users + their feeds; remove individual subscriptions; delete user registrations). _(needs subscriptions — S3 / C1)_ ✅ **Done** — `/admin/users` over `IUserAdminService` (`ListAsync` + `RemoveSubscriptionAsync` + `DeleteUserAsync`), mirroring the `SubscriptionService` shape (ErrorOr + `IDbContextFactory`, no `UserManager`). Deleting a user cascades their subscriptions at the DB (`Subscription → User` is `Cascade`); the acting admin can't delete their own account (disabled button **and** a `User.CannotDeleteSelf` service guard). Remove/delete confirm in the shared `Modal`. Plan: [`A3-user-management.md`](./A3-user-management.md); feature: [`../features/admin-user-management.md`](../features/admin-user-management.md). **Deferred:** the grant/revoke-`IsAdmin` toggle (see *Deferred / out of scope*). **Security-stamp guard (from G0.9), still pending for that toggle:** the admin claim is baked into the auth cookie by `AdminClaimsPrincipalFactory`, so whenever the `IsAdmin` toggle is built it must call `UserManager.UpdateSecurityStampAsync` so `IdentityRevalidatingAuthenticationStateProvider` regenerates the principal — otherwise the change won't take effect until the user's next sign-in.
 
 ### Track B — Public UX
 - [ ] 🗂 **B1 — Feed list by category** (cards + image, 5/category, "more" +5, single-row desktop / wrap mobile). _(needs S2, A2)_
@@ -131,6 +131,7 @@ dependencies are called out.
 - Multiple Slack channels (single webhook for v1). _(spec)_
 - Categories as free-text (superseded by the category entity). _(spec)_
 - **Admin image upload** — not supported at the moment. _(this session)_
+- **Admin grant/revoke of `IsAdmin` from the user-management UI** — deferred from **A3** (this session's scoping decision); A3 ships list / remove-subscription / delete-registration only. When built, it must call `UserManager.UpdateSecurityStampAsync` after flipping the flag (the G0.9 security-stamp guard on the A3 item), and it would also be the place to fix the seeder's promote-path (`AdminUserSeeder`), which omits the same stamp bump but is harmless at startup.
 - **Article retention / cleanup** — the `Articles` table grows without bound (every item of every active feed, forever). A retention job (or a per-feed cap) is needed before the product runs for long; not scheduled in Phase 2. _(P1.R)_
 
 ## Next steps

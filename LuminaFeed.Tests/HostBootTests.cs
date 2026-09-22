@@ -6,6 +6,7 @@ using LuminaFeed.Services.Feeds;
 using LuminaFeed.Services.Notifications;
 using LuminaFeed.Services.Polling;
 using LuminaFeed.Services.Subscriptions;
+using LuminaFeed.Services.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,6 +40,7 @@ public sealed class HostBootTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ICategoryService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISubscriptionService>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<IUserAdminService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IFeedPollingService>());
 
         // Exactly one notification channel is wired up so far: email.

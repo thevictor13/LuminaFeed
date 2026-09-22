@@ -1,0 +1,230 @@
+@page "/admin/users"
+@attribute [Authorize(Policy = AdminAuthorization.PolicyName)]
+@rendermode InteractiveServer
+
+@using System.Security.Claims
+@using LuminaFeed.Services.Users
+
+@inject IUserAdminService UserAdminService
+
+<PageTitle>Users — Admin</PageTitle>
+
+<h1>Users</h1>
+
+<p><a href="admin">&larr; Admin</a></p>
+
+<ErrorList Messages="errors"/>
+@if (notice is not null)
+{
+    <div class="alert alert-success" role="status">@notice</div>
+}
+
+@if (users is null)
+{
+    <p><em>Loading…</em></p>
+}
+else if (users.Count == 0)
+{
+    <p>No users have registered yet.</p>
+}
+else
+{
+    <table class="table align-middle">
+        <thead>
+        <tr>
+            <th scope="col">User</th>
+            <th scope="col">Subscriptions</th>
+            <th scope="col" class="text-end">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var user in users)
+        {
+            <tr @key="user.Id">
+                <td>
+                    @user.Email
+                    @if (user.IsAdmin)
+                    {
+                        <span class="badge text-bg-secondary ms-1">Admin</span>
+                    }
+                    @if (user.Id == currentUserId)
+                    {
+                        <span class="badge text-bg-light border ms-1">You</span>
+                    }
+                </td>
+                <td>
+                    @if (user.Subscriptions.Count == 0)
+                    {
+                        <span class="text-secondary">—</span>
+                    }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0">
+                            @foreach (var subscription in user.Subscriptions)
+                            {
+                                <li class="d-flex align-items-center gap-2 mb-1" @key="subscription.FeedId">
+                                    <span>@subscription.FeedName</span>
+                                    @if (subscription.EmailEnabled)
+                                    {
+                                        <span class="badge text-bg-light border">Email</span>
+                                    }
+                                    @if (subscription.SlackEnabled)
+                                    {
+                                        <span class="badge text-bg-light border">Slack</span>
+                                    }
+                                    <button type="button" class="btn btn-sm btn-outline-danger py-0"
+                                            @onclick="() => BeginRemove(user, subscription)"
+                                            aria-label="@($"Remove {subscription.FeedName} subscription from {user.Email}")">Remove</button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </td>
+                <td class="text-end text-nowrap">
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            @onclick="() => BeginDeleteUser(user)" disabled="@(user.Id == currentUserId)"
+                            title="@(user.Id == currentUserId ? "You cannot delete your own account." : null)"
+                            aria-label="@($"Delete user {user.Email}")">Delete user</button>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+<Modal Visible="subscriptionToRemove is not null" Title="Remove subscription" OnClose="CancelRemove">
+    <ErrorList Messages="removeErrors"/>
+    @if (subscriptionToRemove is not null)
+    {
+        <p>Remove <strong>@subscriptionToRemove.FeedName</strong> from <strong>@subscriptionToRemove.Email</strong>?
+            They will stop receiving alerts for this feed.</p>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" @onclick="CancelRemove" disabled="@removeBusy">Cancel</button>
+            <button type="button" class="btn btn-danger" @onclick="ConfirmRemoveAsync" disabled="@removeBusy">Remove subscription</button>
+        </div>
+    }
+</Modal>
+
+<Modal Visible="userToDelete is not null" Title="Delete user" OnClose="CancelDeleteUser">
+    <ErrorList Messages="deleteErrors"/>
+    @if (userToDelete is not null)
+    {
+        <p>Permanently delete the account <strong>@userToDelete.Email</strong>? This also removes
+            @userToDelete.Subscriptions.Count subscription@(userToDelete.Subscriptions.Count == 1 ? "" : "s"),
+            and can't be undone.</p>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="btn btn-secondary" @onclick="CancelDeleteUser" disabled="@deleteBusy">Cancel</button>
+            <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteUserAsync" disabled="@deleteBusy">Delete user</button>
+        </div>
+    }
+</Modal>
+
+@code {
+    private IReadOnlyList<UserSummary>? users;
+    private IReadOnlyList<string> errors = [];
+    private IReadOnlyList<string> removeErrors = [];
+    private IReadOnlyList<string> deleteErrors = [];
+    private string? notice;
+    private string? currentUserId;
+    private PendingRemoval? subscriptionToRemove;
+    private UserSummary? userToDelete;
+    private bool removeBusy;
+    private bool deleteBusy;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // The acting admin's id always comes from the authenticated principal — never from client input; it is what
+        // stops an admin from deleting their own account.
+        if (AuthenticationState is not null)
+        {
+            var user = (await AuthenticationState).User;
+            currentUserId = user.Identity?.IsAuthenticated == true ? user.FindFirstValue(ClaimTypes.NameIdentifier) : null;
+        }
+
+        users = await UserAdminService.ListAsync();
+    }
+
+    private void BeginRemove(UserSummary user, UserSubscriptionSummary subscription)
+    {
+        subscriptionToRemove = new PendingRemoval(user.Id, user.Email, subscription.FeedId, subscription.FeedName);
+        removeErrors = [];
+    }
+
+    private void CancelRemove()
+    {
+        subscriptionToRemove = null;
+        removeErrors = [];
+    }
+
+    private async Task ConfirmRemoveAsync()
+    {
+        if (subscriptionToRemove is null || removeBusy)
+            return;
+
+        removeBusy = true;
+        try
+        {
+            var target = subscriptionToRemove;
+            var result = await UserAdminService.RemoveSubscriptionAsync(target.UserId, target.FeedId);
+            if (result.IsError)
+            {
+                removeErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            subscriptionToRemove = null;
+            removeErrors = [];
+            errors = [];
+            notice = $"Removed \"{target.FeedName}\" from {target.Email}.";
+            users = await UserAdminService.ListAsync();
+        }
+        finally
+        {
+            removeBusy = false;
+        }
+    }
+
+    private void BeginDeleteUser(UserSummary user)
+    {
+        userToDelete = user;
+        deleteErrors = [];
+    }
+
+    private void CancelDeleteUser()
+    {
+        userToDelete = null;
+        deleteErrors = [];
+    }
+
+    private async Task ConfirmDeleteUserAsync()
+    {
+        if (userToDelete is null || deleteBusy)
+            return;
+
+        deleteBusy = true;
+        try
+        {
+            var target = userToDelete;
+            var result = await UserAdminService.DeleteUserAsync(target.Id, currentUserId ?? string.Empty);
+            if (result.IsError)
+            {
+                deleteErrors = [.. result.Errors.Select(e => e.Description)];
+                return;
+            }
+
+            userToDelete = null;
+            deleteErrors = [];
+            errors = [];
+            notice = $"User \"{target.Email}\" was deleted.";
+            users = await UserAdminService.ListAsync();
+        }
+        finally
+        {
+            deleteBusy = false;
+        }
+    }
+
+    private sealed record PendingRemoval(string UserId, string Email, Guid FeedId, string FeedName);
+}
