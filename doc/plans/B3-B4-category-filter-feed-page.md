@@ -96,7 +96,7 @@ Add an internal **View articles** anchor (`href="feed/{Feed.Id}"`, `aria-label="
 ## Verification (both commits)
 
 1. `DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet build` — **0 warnings**.
-2. `DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet test` — **green** (incl. the `HasPendingModelChanges` drift guard after the migration).
+2. `DOTNET_CLI_TELEMETRY_OPTOUT=1 dotnet test` — **green**. (No migration is added — see the correction above — so there is no new `HasPendingModelChanges` drift to guard.)
 3. **Browser check (interactivity is only real in a browser — per convention & memory):** launch an isolated instance (private port + temp DB + distinct admin email, so no leaked digests / no touching the main app.db) driven by the scratchpad PuppeteerSharp probe against the installed Chrome (no Chromium download; network stays within nuget.org / RSS publishers). Seed a couple of `Article` rows directly into the temp DB for a feed so the feed page shows cards. Confirm:
    - **B3:** the filter dropdown opens/closes (backdrop + Escape); picking a category shows only that section at cap 30 with a "More" (+30) button; "All feeds" restores the cap-5 view — all without a full page reload.
    - **B4:** a card's **View articles** navigates to `/feed/{id}`; the page shows the header, **Visit site**, and article cards; **Subscribe** toggles to red **Unsubscribe** and back; an unknown guid shows the not-found message.
@@ -105,6 +105,6 @@ Add an internal **View articles** anchor (`href="feed/{Feed.Id}"`, `aria-label="
 ## Commit plan
 
 - **Commit 1 (B3):** `CategoryFilter.razor` (+CSS), `CategorySection.razor` (PageSize param), `Home.razor`, the B3 tests, the plan doc, `public-feed-list.md` + master-plan tick. Build 0-warnings, tests green, browser-verified before committing.
-- **Commit 2 (B4):** the `IFeedService`/`FeedService` additions, `ArticleConfiguration` index + migration, `Feed.razor`, `ArticleCard.razor`, `FeedCard.razor` change, the B4 tests, `feed-page.md`, `public-feed-list.md` + master-plan tick. Build 0-warnings, tests green, browser-verified before committing.
+- **Commit 2 (B4):** the `IFeedService`/`FeedService` additions, an `ArticleConfiguration` comment-only change (no index/migration — see the correction above; the existing `(FeedId, ExternalId)` index serves the `FeedId` filter on its prefix), `Feed.razor`, `ArticleCard.razor`, `FeedCard.razor` change, the B4 tests, `feed-page.md`, `public-feed-list.md` + master-plan tick. Build 0-warnings, tests green, browser-verified before committing.
 
 Both commits are **local only on `phase-2b` — no push, no stash pop.** Commit-message trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.

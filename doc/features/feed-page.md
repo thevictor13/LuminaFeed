@@ -47,8 +47,12 @@ breaking ties, then capped at `maxArticles`.
   already sorts articles client-side. (Correct text ordering of the stored UTC `DateTimeOffset` — the codebase's UTC
   invariant — would apply if SQL ordering were possible; it is the reason the values are uniform, and it keeps the
   in-memory sort meaningful.)
-- Bringing a feed's rows into memory is acceptable at current volumes; unbounded article growth is a known, separate
-  deferred concern (retention/cleanup, see the master plan).
+- **Accepted-risk decision — the fetch is unbounded.** Because the sort cannot run in SQL, `GetFeedDetailAsync`
+  reads **every** stored row for the feed into memory on **each** feed-page view, then sorts and takes the newest
+  `maxArticles` (50). This is acceptable at current volumes and is kept as-is deliberately. It grows with retained
+  articles, so the bound is a **deferred follow-up**, to be picked up with whichever lands first: the retention /
+  cleanup job (see the master plan), or a sortable key column (e.g. a `long` UTC-ticks value, indexed per feed) that
+  would let the query `ORDER BY … LIMIT` at the database and read only the page's worth of rows.
 
 ## Public card button (`LuminaFeed/Components/Shared/FeedCard.razor`)
 

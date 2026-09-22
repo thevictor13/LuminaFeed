@@ -53,10 +53,10 @@ LuminaFeed is an online service where users register and subscribe to admin-cura
 
 ## UI Behaviour (see spec for exact limits)
 
-- **Public main view** — feeds shown by category as **cards** (with the feed's image when available): max **5** per category (single row on desktop, wrap on mobile), a **more** button adds 5. A category header **order** control sorts by popularity (default) or name, ascending/descending. A top-level **category filter** shows only that category, capped at **30** with a more button adding 30. _(paging/order/filter arrive with B1–B3)_
-- **Feed page** — article cards (image, first paragraphs, title, subject to availability) plus a subscribe/unsubscribe button. _(B4)_
+- **Public main view** — feeds shown by category as **cards** (with the feed's image when available): max **5** per category (single row on desktop, wrap on mobile), a **more** button adds 5. A category header **order** control sorts by popularity (default) or name, ascending/descending. A top-level **category filter** shows only that category, capped at **30** with a more button adding 30. _(paging/order/filter shipped in B1–B3)_
+- **Feed page** — article cards (image, first paragraphs, title, subject to availability) plus a subscribe/unsubscribe button. _(shipped in B4)_
 - **Subscribe flow** — an unauthenticated subscribe attempt redirects to login (offering registration), preserving the origin location (a query parameter is fine) so the user returns after auth — on the register path the `ReturnUrl` rides along in the confirmation email and the confirm page's **Continue** button. An already-subscribed feed shows **unsubscribe** in red. Clicking subscribe opens a dialog with email and Slack switches. _(dialog arrives with C1)_
-- **Admin views** — list signed-up users and their feeds; CRUD categories; CRUD feeds; remove individual user subscriptions or delete user registrations entirely. _(create + list built; edit/delete and user management arrive with A1–A3)_
+- **Admin views** — list signed-up users and their feeds; CRUD categories; CRUD feeds; remove individual user subscriptions or delete user registrations entirely. _(full category/feed CRUD and user management shipped in A1–A3)_
 
 ## Conventions established in code
 
