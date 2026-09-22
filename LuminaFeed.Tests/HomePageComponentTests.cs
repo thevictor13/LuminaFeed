@@ -71,7 +71,8 @@ public sealed class HomePageComponentTests : BunitContext
         var link = cut.WaitForElement("a[aria-label='Subscribe to BBC News']");
         Assert.Equal("Account/Login?ReturnUrl=%2F", link.GetAttribute("href"));
         Assert.Contains("btn-primary", link.ClassList);
-        Assert.Empty(cut.FindAll("button"));
+        // The subscribe control is a login link, not a button (the order-menu trigger is the page's only button).
+        Assert.Empty(cut.FindAll("button[aria-label^='Subscribe'], button[aria-label^='Unsubscribe']"));
     }
 
     [Fact]

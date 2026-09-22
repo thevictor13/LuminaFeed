@@ -1,0 +1,53 @@
+@* A Blazor-driven order control. The app loads Bootstrap's CSS but not its JS, so a `data-bs-toggle="dropdown"`
+   menu would never open — open/close is handled here in C#. A transparent full-viewport backdrop closes it on an
+   outside click, and Escape closes it too. Styled with Bootstrap's `.dropdown` / `.dropdown-menu` classes. *@
+<div class="dropdown order-menu" @onkeydown="OnKeyDown">
+    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            aria-haspopup="menu" aria-expanded="@(open ? "true" : "false")"
+            aria-label="@($"Order {Label} by")" @onclick="Toggle">
+        Order
+    </button>
+    @if (open)
+    {
+        <div class="order-backdrop" @onclick="Close"></div>
+        <div class="dropdown-menu dropdown-menu-end show order-menu-list" role="menu">
+            @foreach (var option in Options)
+            {
+                <button type="button" role="menuitem"
+                        class="dropdown-item @(option == Value ? "active" : null)"
+                        aria-current="@(option == Value ? "true" : null)"
+                        @onclick="@(() => SelectAsync(option))">
+                    @FeedOrdering.Label(option)
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly FeedOrder[] Options = Enum.GetValues<FeedOrder>();
+    private bool open;
+
+    [Parameter] public FeedOrder Value { get; set; }
+    [Parameter] public EventCallback<FeedOrder> OnChange { get; set; }
+
+    /// <summary>Names the control for assistive tech (e.g. the category it orders).</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = default!;
+
+    private void Toggle() => open = !open;
+
+    private void Close() => open = false;
+
+    private async Task SelectAsync(FeedOrder option)
+    {
+        open = false;
+        if (option != Value)
+            await OnChange.InvokeAsync(option);
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            open = false;
+    }
+}

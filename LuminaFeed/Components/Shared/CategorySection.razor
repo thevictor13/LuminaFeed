@@ -6,10 +6,11 @@
 <section class="mb-5">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap border-bottom pb-2 mb-3">
         <h2 class="h4 mb-0">@Category.CategoryName</h2>
+        <OrderMenu Value="order" Label="@Category.CategoryName" OnChange="OnOrderChanged"/>
     </div>
 
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-3">
-        @foreach (var feed in Category.Feeds.Take(visibleCount))
+        @foreach (var feed in FeedOrdering.Sort(Category.Feeds, order).Take(visibleCount))
         {
             <div class="col" @key="feed.Id">
                 <FeedCard Feed="feed">
@@ -41,6 +42,10 @@
     private const int PageSize = 5;
     private int visibleCount = PageSize;
 
+    // The chosen order for this category (B2). Ephemeral, like visibleCount — not persisted across the circuit
+    // hand-off (that would grow the 32 KB circuit-start payload); the default matches the service's order.
+    private FeedOrder order = FeedOrder.PopularityDesc;
+
     [Parameter, EditorRequired] public CategoryFeeds Category { get; set; } = default!;
     [Parameter] public bool IsAuthenticated { get; set; }
     [Parameter, EditorRequired] public string LoginUrl { get; set; } = default!;
@@ -49,4 +54,7 @@
     [Parameter] public EventCallback<Guid> OnToggleSubscription { get; set; }
 
     private void ShowMore() => visibleCount += PageSize;
+
+    // Keep visibleCount as-is across a re-order: the user sees the same number of cards, reordered.
+    private void OnOrderChanged(FeedOrder newOrder) => order = newOrder;
 }

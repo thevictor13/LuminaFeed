@@ -66,4 +66,67 @@ public sealed class CategorySectionComponentTests : BunitContext
         // Anonymous (IsAuthenticated defaults to false): Subscribe renders as a login link named for its feed.
         Assert.NotNull(cut.Find("a[aria-label='Subscribe to BBC News']"));
     }
+
+    // --- B2: the per-category order control -------------------------------------------------------
+
+    // Popularity order (default) and name order differ, so we can tell which is applied.
+    private static CategoryFeeds Ordered() => new(Guid.CreateVersion7(), "Technology",
+        [Feed("Zebra Times", popularity: 100), Feed("Alpha News", popularity: 50), Feed("Mango Post", popularity: 10)]);
+
+    private const string OrderButton = "button[aria-label='Order Technology by']";
+
+    private static IReadOnlyList<string> Titles(IRenderedComponent<CategorySection> cut) =>
+        [.. cut.FindAll(".feed-card h3.card-title").Select(e => e.TextContent.Trim())];
+
+    [Fact]
+    public void DefaultOrder_IsMostPopularFirst()
+    {
+        var cut = RenderSection(Ordered());
+
+        Assert.Equal(["Zebra Times", "Alpha News", "Mango Post"], Titles(cut));
+        Assert.Empty(cut.FindAll(".dropdown-menu.show")); // menu starts closed
+    }
+
+    [Fact]
+    public async Task OpeningTheOrderMenu_ShowsTheFourOptions()
+    {
+        var cut = RenderSection(Ordered());
+
+        await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll(".dropdown-menu.show .dropdown-item").Count));
+    }
+
+    [Fact]
+    public async Task SelectingNameAscending_ReordersTheCards_ClosesTheMenu_AndMarksTheActiveOption()
+    {
+        var cut = RenderSection(Ordered());
+        await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
+        var nameAsc = cut.FindAll(".dropdown-menu.show .dropdown-item").Single(b => b.TextContent.Contains("A–Z"));
+
+        await nameAsc.ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Equal(["Alpha News", "Mango Post", "Zebra Times"], Titles(cut));
+            Assert.Empty(cut.FindAll(".dropdown-menu.show")); // selecting closes the menu
+        });
+
+        // Reopen: the chosen option is marked active.
+        await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
+        var active = cut.Find(".dropdown-menu.show .dropdown-item.active");
+        Assert.Contains("A–Z", active.TextContent);
+    }
+
+    [Fact]
+    public async Task ClickingTheBackdrop_ClosesTheMenu()
+    {
+        var cut = RenderSection(Ordered());
+        await cut.Find(OrderButton).ClickAsync(new MouseEventArgs());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".dropdown-menu.show")));
+
+        await cut.Find(".order-backdrop").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".dropdown-menu.show")));
+    }
 }
