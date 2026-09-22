@@ -2,7 +2,13 @@
    so the dialog is plain conditionally-rendered markup — it stays inside the SignalR circuit and is bUnit-testable.
    Rendered only while Visible; the caller supplies the body (an edit form or a confirmation) as ChildContent.
    The backdrop is static (clicking it does not close the dialog) so an in-progress edit isn't lost by a stray click,
-   but Escape closes it (an intentional keypress, not a stray click). Focus moves into the dialog when it opens. *@
+   but Escape closes it (an intentional keypress, not a stray click). Focus moves into the dialog when it opens.
+
+   Scope note: on close, focus is not programmatically returned to the invoking control. Doing that would need either
+   the trigger's ElementReference — which the callers render inside a @foreach, where Blazor can't capture a per-row
+   ref, and which no longer exists after a delete removes its row — or reading document.activeElement through custom
+   JS interop, which this component deliberately avoids so it stays inside the circuit and bUnit-testable. Focus-in
+   (the WCAG-critical half) is handled; focus-return is intentionally left out. Tab is likewise not trapped. *@
 
 @if (Visible)
 {

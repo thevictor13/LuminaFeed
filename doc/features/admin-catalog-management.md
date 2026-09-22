@@ -35,7 +35,11 @@ JS interop** (only Bootstrap's CSS is loaded, not its JS bundle), so it stays in
 bUnit-testable. Its backdrop is static (a stray click won't discard an in-progress edit); it closes via the header
 `×`, the Cancel button, or the **Escape** key (an intentional keypress, unlike a stray click). Focus moves into the
 dialog when it opens (`FocusAsync` on the container, `tabindex="-1"`), so keyboard users land inside it and Escape works
-immediately. Clicking **Edit** on a row opens it holding the same form, pre-filled (the dialog's inputs
+immediately. On close it does **not** programmatically return focus to the invoking row control, and it does not trap
+Tab: both would need either a per-row trigger `ElementReference` (which Blazor can't capture inside a `@foreach`, and
+which is gone once a delete removes the row) or reading `document.activeElement` via custom JS interop — which the
+component deliberately avoids to stay circuit-only and bUnit-testable. Focus-*in* (the WCAG-critical half) is handled;
+focus-*return* is a documented limitation. Clicking **Edit** on a row opens it holding the same form, pre-filled (the dialog's inputs
 use `edit-*` ids so they don't collide with the add form); clicking **Delete** opens a confirmation. On success the
 dialog closes, the table refreshes and the notice updates. (C1's subscribe dialog will reuse this component.)
 
