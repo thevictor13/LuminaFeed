@@ -33,7 +33,9 @@ added / updated / deleted.
 `Components/Shared/Modal.razor` is a small reusable dialog: **conditionally-rendered Bootstrap markup, CSS-only, no
 JS interop** (only Bootstrap's CSS is loaded, not its JS bundle), so it stays inside the SignalR circuit and is
 bUnit-testable. Its backdrop is static (a stray click won't discard an in-progress edit); it closes via the header
-`×` or the Cancel button. Clicking **Edit** on a row opens it holding the same form, pre-filled (the dialog's inputs
+`×`, the Cancel button, or the **Escape** key (an intentional keypress, unlike a stray click). Focus moves into the
+dialog when it opens (`FocusAsync` on the container, `tabindex="-1"`), so keyboard users land inside it and Escape works
+immediately. Clicking **Edit** on a row opens it holding the same form, pre-filled (the dialog's inputs
 use `edit-*` ids so they don't collide with the add form); clicking **Delete** opens a confirmation. On success the
 dialog closes, the table refreshes and the notice updates. (C1's subscribe dialog will reuse this component.)
 
@@ -50,7 +52,9 @@ dialog closes, the table refreshes and the notice updates. (C1's subscribe dialo
   - `ListAsync()` — `FeedSummary` rows ordered by category name, then feed name.
   - `CreateAsync(CreateFeedRequest)` — trims input, stores blank optionals as `null`.
   - `UpdateAsync(UpdateFeedRequest)` **(A2)** — trims input; not-found for an unknown feed **or** category;
-    duplicate-URL check ignores the row being edited.
+    duplicate-URL check ignores the row being edited. Changing the **feed URL** clears the feed's cached
+    `ETag` / `LastModified` (the conditional-request state a future C4 poll would send), so the new endpoint starts
+    clean; a non-URL edit leaves them untouched.
   - `GetDeletionImpactAsync(Guid id)` **(A2)** — `FeedDeletionImpact(Id, Name, SubscriptionCount, ArticleCount)` for
     the delete warning; not-found for an unknown id. (`FeedSummary` is deliberately left unchanged, so the public
     main view gains no extra joins.)
@@ -97,8 +101,9 @@ so Identity's stores and the seeders are unchanged.
   not-found, and deleting a category with feeds is a `Category.HasFeeds` conflict.
   `FeedServiceTests` also covers **A2**: update persists including a category change, a duplicate-URL conflict vs.
   another feed (a case-variant of the row's own URL is allowed), unknown-feed / unknown-category not-found, non-http
-  URL validation; delete cascades the feed's subscriptions and articles while leaving other feeds' rows intact; and
-  the deletion-impact counts (and not-found).
+  URL validation; delete cascades the feed's subscriptions and articles while leaving other feeds' rows intact;
+  the deletion-impact counts (and not-found); and a feed-URL change clears the cached `ETag` / `LastModified` while a
+  non-URL edit keeps them.
 - `AdminPagesTests` — each admin page is routed and carries `[Authorize(Policy = "Admin")]`; anonymous requests are
   redirected to login with the `ReturnUrl`; a **signed-in admin** (seeded, signed in through the real login form)
   gets the pages rendered with the seeded catalogue (the category dropdown lists a seeded category by id).
@@ -110,7 +115,10 @@ so Identity's stores and the seeders are unchanged.
   inside the dialog, deleting an empty category removes the row, and the Delete button is disabled for a category
   that has feeds. **A2 dialogs:** the feed Edit dialog opens with the category pre-selected and updates the row,
   editing onto another feed's URL shows the conflict inside the dialog, and the Delete dialog shows the
-  subscription / article impact and then removes the row (and its subscriptions and articles).
+  subscription / article impact and then removes the row (and its subscriptions and articles). **Modal behaviour:**
+  pressing **Escape** in the edit dialog closes it without saving; a blank name in the edit dialog surfaces the
+  validation message *inside* the dialog (leaving the row unchanged); cancelling a delete removes nothing; and a feed
+  with no subscriptions or articles shows the plain delete confirmation (no impact line).
 - `HostBootTests` — the services resolve from the real DI graph, and the factory-created context sees the same seeded
   database as the scoped one. The shared `TestAppFactory` keeps its temp database next to the test binaries and
   clears the SQLite connection pools so the file is actually deleted.

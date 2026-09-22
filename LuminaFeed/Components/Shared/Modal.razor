@@ -1,11 +1,13 @@
 @* A minimal Bootstrap modal driven entirely by Blazor state. Only Bootstrap's CSS is loaded (no bootstrap.js),
    so the dialog is plain conditionally-rendered markup — it stays inside the SignalR circuit and is bUnit-testable.
    Rendered only while Visible; the caller supplies the body (an edit form or a confirmation) as ChildContent.
-   The backdrop is static (clicking it does not close the dialog) so an in-progress edit isn't lost by a stray click. *@
+   The backdrop is static (clicking it does not close the dialog) so an in-progress edit isn't lost by a stray click,
+   but Escape closes it (an intentional keypress, not a stray click). Focus moves into the dialog when it opens. *@
 
 @if (Visible)
 {
-    <div class="modal d-block show" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="@titleId">
+    <div class="modal d-block show" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="@titleId"
+         @ref="dialog" @onkeydown="OnKeyDown">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
@@ -23,9 +25,36 @@
 
 @code {
     private readonly string titleId = $"modal-title-{Guid.NewGuid():N}";
+    private ElementReference dialog;
+    private bool wasVisible;
+    private bool focusOnRender;
 
     [Parameter] public bool Visible { get; set; }
     [Parameter] public string Title { get; set; } = string.Empty;
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        // Focus the dialog on the first render after it opens, so keyboard users land inside it and Escape
+        // (handled on the container, tabindex="-1") works immediately.
+        if (Visible && !wasVisible)
+            focusOnRender = true;
+        wasVisible = Visible;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusOnRender)
+        {
+            focusOnRender = false;
+            await dialog.FocusAsync();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+            await OnClose.InvokeAsync();
+    }
 }

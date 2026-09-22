@@ -34,11 +34,26 @@ public sealed class UserAdminService(IDbContextFactory<ApplicationDbContext> dbF
         return deleted == 0 ? UserErrors.SubscriptionNotFound : Result.Deleted;
     }
 
+    public async Task<ErrorOr<int>> GetSubscriptionCountAsync(
+        string userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+        var found = await db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => new { Count = u.Subscriptions.Count })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return found is null ? UserErrors.UserNotFound : found.Count;
+    }
+
     public async Task<ErrorOr<Deleted>> DeleteUserAsync(
         string userId, string actingAdminId, CancellationToken cancellationToken = default)
     {
         // Guard the acting admin from locking themselves out (also enforced by the disabled button on their own row).
-        if (userId == actingAdminId)
+        // An empty acting id is a programming error (the id must come from the authenticated principal) and would
+        // otherwise slip past the self-check, so it is refused too.
+        if (string.IsNullOrEmpty(actingAdminId) || userId == actingAdminId)
             return UserErrors.CannotDeleteSelf;
 
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);

@@ -1,6 +1,7 @@
 using ErrorOr;
 using LuminaFeed.Domain;
 using LuminaFeed.Services.Users;
+using Microsoft.AspNetCore.Identity;
 
 namespace LuminaFeed.Tests;
 
@@ -147,5 +148,86 @@ public sealed class UserAdminServiceTests : IDisposable
         Assert.Equal(UserErrors.CannotDeleteSelf.Code, result.FirstError.Code);
         using var ctx = _db.CreateDbContext();
         Assert.NotNull(ctx.Users.FirstOrDefault(u => u.Id == admin.Id));
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_OfAnotherAdmin_IsAllowed()
+    {
+        // Only *self*-deletion is guarded (documented: no last-admin protection) — deleting another admin succeeds.
+        var acting = _db.AddUser("admin1@example.test");
+        var otherAdmin = _db.AddUser("admin2@example.test");
+        SetAdmin(otherAdmin.Id);
+
+        var result = await CreateService().DeleteUserAsync(otherAdmin.Id, acting.Id);
+
+        Assert.False(result.IsError);
+        using var ctx = _db.CreateDbContext();
+        Assert.Null(ctx.Users.FirstOrDefault(u => u.Id == otherAdmin.Id));
+        Assert.NotNull(ctx.Users.FirstOrDefault(u => u.Id == acting.Id));
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_WithEmptyActingAdminId_IsRefused()
+    {
+        // The acting id must be a real principal id; a blank one would otherwise defeat the self-delete guard.
+        var user = _db.AddUser();
+
+        var result = await CreateService().DeleteUserAsync(user.Id, actingAdminId: "");
+
+        Assert.True(result.IsError);
+        Assert.Equal(UserErrors.CannotDeleteSelf.Code, result.FirstError.Code);
+        using var ctx = _db.CreateDbContext();
+        Assert.NotNull(ctx.Users.FirstOrDefault(u => u.Id == user.Id));
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_AlsoCascadesIdentitySatelliteRows()
+    {
+        var alice = _db.AddUser("alice@example.test");
+        using (var seed = _db.CreateDbContext())
+        {
+            seed.Set<IdentityUserLogin<string>>().Add(new IdentityUserLogin<string>
+            {
+                UserId = alice.Id, LoginProvider = "Google", ProviderKey = "google-123", ProviderDisplayName = "Google",
+            });
+            seed.SaveChanges();
+        }
+
+        var result = await CreateService().DeleteUserAsync(alice.Id, "some-other-admin");
+
+        Assert.False(result.IsError);
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Set<IdentityUserLogin<string>>().Where(l => l.UserId == alice.Id));
+    }
+
+    [Fact]
+    public async Task GetSubscriptionCountAsync_ReturnsTheUsersLiveSubscriptionCount()
+    {
+        var alice = _db.AddUser("alice@example.test");
+        Subscribe(alice.Id, AddFeed("BBC News").Id);
+        Subscribe(alice.Id, AddFeed("DW").Id);
+
+        var result = await CreateService().GetSubscriptionCountAsync(alice.Id);
+
+        Assert.False(result.IsError);
+        Assert.Equal(2, result.Value);
+    }
+
+    [Fact]
+    public async Task GetSubscriptionCountAsync_UnknownUser_IsNotFound()
+    {
+        var result = await CreateService().GetSubscriptionCountAsync("no-such-user");
+
+        Assert.True(result.IsError);
+        Assert.Equal(ErrorType.NotFound, result.FirstError.Type);
+        Assert.Equal(UserErrors.UserNotFound.Code, result.FirstError.Code);
+    }
+
+    private void SetAdmin(string userId)
+    {
+        using var ctx = _db.CreateDbContext();
+        var user = ctx.Users.First(u => u.Id == userId);
+        user.IsAdmin = true;
+        ctx.SaveChanges();
     }
 }

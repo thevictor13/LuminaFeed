@@ -109,8 +109,9 @@ else
     <ErrorList Messages="deleteErrors"/>
     @if (userToDelete is not null)
     {
+        var subscriptionCount = deleteSubscriptionCount ?? userToDelete.Subscriptions.Count;
         <p>Permanently delete the account <strong>@userToDelete.Email</strong>? This also removes
-            @userToDelete.Subscriptions.Count subscription@(userToDelete.Subscriptions.Count == 1 ? "" : "s"),
+            @subscriptionCount subscription@(subscriptionCount == 1 ? "" : "s"),
             and can't be undone.</p>
         <div class="d-flex gap-2 justify-content-end">
             <button type="button" class="btn btn-secondary" @onclick="CancelDeleteUser" disabled="@deleteBusy">Cancel</button>
@@ -128,6 +129,7 @@ else
     private string? currentUserId;
     private PendingRemoval? subscriptionToRemove;
     private UserSummary? userToDelete;
+    private int? deleteSubscriptionCount;
     private bool removeBusy;
     private bool deleteBusy;
 
@@ -148,6 +150,7 @@ else
 
     private void BeginRemove(UserSummary user, UserSubscriptionSummary subscription)
     {
+        notice = null;
         subscriptionToRemove = new PendingRemoval(user.Id, user.Email, subscription.FeedId, subscription.FeedName);
         removeErrors = [];
     }
@@ -186,15 +189,21 @@ else
         }
     }
 
-    private void BeginDeleteUser(UserSummary user)
+    private async Task BeginDeleteUser(UserSummary user)
     {
+        notice = null;
         userToDelete = user;
         deleteErrors = [];
+        // Read the subscription count fresh for the warning; fall back to the list snapshot if the read fails.
+        deleteSubscriptionCount = null;
+        var result = await UserAdminService.GetSubscriptionCountAsync(user.Id);
+        deleteSubscriptionCount = result.IsError ? null : result.Value;
     }
 
     private void CancelDeleteUser()
     {
         userToDelete = null;
+        deleteSubscriptionCount = null;
         deleteErrors = [];
     }
 
@@ -215,6 +224,7 @@ else
             }
 
             userToDelete = null;
+            deleteSubscriptionCount = null;
             deleteErrors = [];
             errors = [];
             notice = $"User \"{target.Email}\" was deleted.";

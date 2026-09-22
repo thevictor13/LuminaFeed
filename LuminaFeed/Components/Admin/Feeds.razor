@@ -237,6 +237,7 @@ else
 
     private void BeginEdit(FeedSummary feed)
     {
+        notice = null;
         edit.Id = feed.Id;
         edit.Name = feed.Name;
         edit.CategoryId = feed.CategoryId;
@@ -292,6 +293,7 @@ else
 
     private async Task BeginDeleteAsync(FeedSummary feed)
     {
+        notice = null;
         deleting = feed;
         deleteImpact = null;
         deleteErrors = [];

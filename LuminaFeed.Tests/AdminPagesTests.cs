@@ -2,9 +2,11 @@ using System.Net;
 using System.Reflection;
 using LuminaFeed.Authorization;
 using LuminaFeed.Components.Admin;
+using LuminaFeed.Data;
 using LuminaFeed.Services.Categories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -43,6 +45,40 @@ public sealed class AdminPagesTests
         var location = response.Headers.Location!.ToString();
         Assert.Contains("/Account/Login", location);
         Assert.Contains("ReturnUrl=" + Uri.EscapeDataString(route), location);
+    }
+
+    [Theory]
+    [InlineData("/admin")]
+    [InlineData("/admin/categories")]
+    [InlineData("/admin/feeds")]
+    [InlineData("/admin/users")]
+    public async Task AdminPage_AuthenticatedNonAdmin_IsDenied(string route)
+    {
+        using var factory = new TestAppFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        const string email = "standard@luminafeed.test";
+        const string password = "ChangeMe!123";
+        await CreateConfirmedUserAsync(factory.Services, email, password);
+        await TestSignIn.SignInAsync(client, email, password);
+
+        using var response = await client.GetAsync(route);
+
+        // A signed-in ordinary user lacks the "IsAdmin" claim, so the Admin policy denies them: they must not be
+        // served the admin page. Unlike an anonymous request (challenged to /Account/Login), an authenticated but
+        // unauthorized user is *forbidden* — the Identity cookie handler redirects them to /Account/AccessDenied.
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/Account/AccessDenied", response.Headers.Location!.ToString());
+    }
+
+    /// <summary>Seeds a confirmed standard (non-admin) user that can sign in through the real login form.</summary>
+    private static async Task CreateConfirmedUserAsync(IServiceProvider services, string email, string password)
+    {
+        using var scope = services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true, IsAdmin = false };
+        var result = await userManager.CreateAsync(user, password);
+        Assert.True(result.Succeeded, string.Join("; ", result.Errors.Select(e => e.Description)));
     }
 
     [Fact]

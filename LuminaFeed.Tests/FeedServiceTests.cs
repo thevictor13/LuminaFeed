@@ -286,6 +286,51 @@ public sealed class FeedServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateAsync_ChangingTheFeedUrl_ClearsTheCachedEtagAndLastModified()
+    {
+        var category = _db.AddCategory();
+        var feed = _db.AddFeed(category.Id, "BBC", "https://bbc.test/rss.xml");
+        await SetPollingCache(feed.Id, etag: "\"abc123\"", lastModified: "Wed, 21 Oct 2026 07:28:00 GMT");
+
+        var result = await CreateService().UpdateAsync(new UpdateFeedRequest(
+            feed.Id, "BBC", category.Id, "https://bbc.test/news.xml", "https://bbc.test"));
+
+        Assert.False(result.IsError);
+        using var ctx = _db.CreateDbContext();
+        var stored = Assert.Single(ctx.Feeds);
+        Assert.Equal("https://bbc.test/news.xml", stored.FeedUrl);
+        Assert.Null(stored.ETag);
+        Assert.Null(stored.LastModified);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LeavingTheFeedUrlUnchanged_KeepsTheCachedEtagAndLastModified()
+    {
+        var category = _db.AddCategory();
+        var feed = _db.AddFeed(category.Id, "BBC", "https://bbc.test/rss.xml");
+        await SetPollingCache(feed.Id, etag: "\"abc123\"", lastModified: "Wed, 21 Oct 2026 07:28:00 GMT");
+
+        // Same URL, only the popularity changes — the conditional-request cache must survive.
+        var result = await CreateService().UpdateAsync(new UpdateFeedRequest(
+            feed.Id, "BBC", category.Id, "https://bbc.test/rss.xml", "https://bbc.test", Popularity: 42));
+
+        Assert.False(result.IsError);
+        using var ctx = _db.CreateDbContext();
+        var stored = Assert.Single(ctx.Feeds);
+        Assert.Equal("\"abc123\"", stored.ETag);
+        Assert.Equal("Wed, 21 Oct 2026 07:28:00 GMT", stored.LastModified);
+    }
+
+    private async Task SetPollingCache(Guid feedId, string etag, string lastModified)
+    {
+        await using var ctx = _db.CreateDbContext();
+        var feed = await ctx.Feeds.FindAsync(feedId);
+        feed!.ETag = etag;
+        feed.LastModified = lastModified;
+        await ctx.SaveChangesAsync();
+    }
+
+    [Fact]
     public async Task UpdateAsync_UnknownFeed_IsNotFound()
     {
         var category = _db.AddCategory();

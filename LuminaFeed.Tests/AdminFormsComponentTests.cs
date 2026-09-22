@@ -111,6 +111,62 @@ public sealed class AdminFormsComponentTests : BunitContext
     }
 
     [Fact]
+    public async Task Categories_PressingEscapeInTheEditDialog_ClosesItWithoutSaving()
+    {
+        _db.AddCategory("Science");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Science']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#edit-category-name").Change("Renamed");
+
+        // Escape is an intentional keypress (unlike a stray backdrop click), so it closes the dialog — and, being
+        // a cancel, saves nothing.
+        cut.Find(".modal").KeyDown(new KeyboardEventArgs { Key = "Escape" });
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".modal")));
+        Assert.Empty(cut.FindAll(".alert-success"));
+        using var ctx = _db.CreateDbContext();
+        Assert.Equal("Science", Assert.Single(ctx.Categories).Name);
+    }
+
+    [Fact]
+    public async Task Categories_EditingToABlankName_ShowsTheValidationInsideTheDialog()
+    {
+        _db.AddCategory("Science");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Edit Science']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement("#edit-category-name").Change("");
+        await cut.Find(".modal form").SubmitAsync();
+
+        // The validation message surfaces inside the dialog (not the page-level alert), and the row is untouched.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".modal .alert-danger")));
+        Assert.NotEmpty(cut.FindAll(".modal"));
+        Assert.Empty(cut.FindAll(".alert-success"));
+        using var ctx = _db.CreateDbContext();
+        Assert.Equal("Science", Assert.Single(ctx.Categories).Name);
+    }
+
+    [Fact]
+    public async Task Categories_CancellingTheDeleteDialog_RemovesNothing()
+    {
+        _db.AddCategory("Science");
+        var cut = RenderPage<Categories>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Delete Science']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement(".modal");
+        await cut.Find(".modal .btn-secondary").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".modal")));
+        Assert.Empty(cut.FindAll(".alert-success"));
+        using var ctx = _db.CreateDbContext();
+        Assert.Single(ctx.Categories);
+    }
+
+    [Fact]
     public async Task Categories_EditingOntoAnExistingName_ShowsTheConflictInTheDialog()
     {
         _db.AddCategory("World News");
@@ -305,5 +361,25 @@ public sealed class AdminFormsComponentTests : BunitContext
         Assert.Empty(ctx.Feeds);
         Assert.Empty(ctx.Subscriptions);
         Assert.Empty(ctx.Articles);
+    }
+
+    [Fact]
+    public async Task Feeds_DeletingAFeedWithNoImpact_ShowsNoImpactWarning()
+    {
+        var science = _db.AddCategory("Science");
+        _db.AddFeed(science.Id, "Nature", "https://nature.test/rss.xml");
+        var cut = RenderPage<Feeds>();
+        cut.WaitForElement("tbody tr");
+
+        await cut.Find("button[aria-label='Delete Nature']").ClickAsync(new MouseEventArgs());
+        cut.WaitForElement(".modal");
+
+        // A feed with no subscriptions or stored articles shows the plain confirmation — no "This also removes…" line.
+        cut.WaitForAssertion(() => Assert.DoesNotContain("This also removes", cut.Find(".modal-body").TextContent));
+        await cut.Find(".modal .btn-danger").ClickAsync(new MouseEventArgs());
+
+        cut.WaitForAssertion(() => Assert.Contains("Feed \"Nature\" was deleted.", cut.Find(".alert-success").TextContent));
+        using var ctx = _db.CreateDbContext();
+        Assert.Empty(ctx.Feeds);
     }
 }

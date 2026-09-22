@@ -88,6 +88,11 @@ Every poll is a full GET (no conditional requests); feeds are polled sequentiall
 fetched as-is (admins are trusted — there is no private-network filter); two app instances polling at once can race
 on the unique index (the loser's feed is logged and retried next tick).
 
+The `ETag` / `LastModified` columns already exist but are unused until C4. One forward guard is in place now: when an
+admin edits a feed's URL (A2, `FeedService.UpdateAsync`), the stored `ETag` / `LastModified` are **cleared**, so a
+future conditional poll can't send the old endpoint's validators against the new URL (which would risk a wrong 304 and
+skipped articles). `LastPolledAt` is left as-is — the URL change re-fetches in full, but the feed keeps its poll cadence.
+
 ## Tests
 
 `FeedParserTests` (RSS/Atom/RDF fixtures, guid/link fallbacks incl. `isPermaLink="false"`, relative links, non-http

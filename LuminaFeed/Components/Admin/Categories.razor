@@ -151,6 +151,7 @@ else
 
     private void BeginEdit(CategorySummary category)
     {
+        notice = null;
         edit.Id = category.Id;
         edit.Name = category.Name;
         edit.Description = category.Description;
@@ -193,6 +194,7 @@ else
 
     private void BeginDelete(CategorySummary category)
     {
+        notice = null;
         deleting = category;
         deleteErrors = [];
     }

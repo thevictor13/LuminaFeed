@@ -130,6 +130,15 @@ public sealed class FeedService(
         if (await FeedUrlExistsAsync(db, normalized.FeedUrl, cancellationToken, excludingId: normalized.Id))
             return FeedErrors.DuplicateFeedUrl(normalized.FeedUrl);
 
+        // A URL change invalidates the cached conditional-request validators: the stored ETag / Last-Modified
+        // describe the old endpoint, so a future conditional poll (C4) must not send them against the new URL
+        // (that would risk a wrong 304 and skipped articles). Clear them so the next poll is a clean full GET.
+        if (!string.Equals(feed.FeedUrl, normalized.FeedUrl, StringComparison.Ordinal))
+        {
+            feed.ETag = null;
+            feed.LastModified = null;
+        }
+
         feed.Name = normalized.Name;
         feed.CategoryId = normalized.CategoryId;
         feed.FeedUrl = normalized.FeedUrl;

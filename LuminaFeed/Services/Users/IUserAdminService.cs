@@ -19,6 +19,12 @@ public interface IUserAdminService
     Task<ErrorOr<Deleted>> RemoveSubscriptionAsync(string userId, Guid feedId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// How many subscriptions a delete would remove for this user, read fresh for the confirmation dialog (so its
+    /// warning doesn't rely on the possibly-stale list snapshot); not-found for an unknown id.
+    /// </summary>
+    Task<ErrorOr<int>> GetSubscriptionCountAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Deletes a user registration; the user's subscriptions cascade at the database. Refuses to delete the acting
     /// admin's own account (<see cref="UserErrors.CannotDeleteSelf"/>).
     /// </summary>
