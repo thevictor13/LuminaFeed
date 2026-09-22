@@ -98,6 +98,10 @@ public sealed class FeedService(
             feed.Description, feed.Popularity);
     }
 
+    // The unique index on FeedUrl is case-sensitive (SQLite's default collation), so the friendlier case-insensitive
+    // rule lives here. ToLower() on the column means this check scans rather than seeks — fine for a curated
+    // catalogue of a few hundred rows, and it keeps the same semantics on a case-insensitive provider (SQL Server)
+    // without a collation change. Revisit with the feed CRUD work (A2) if the catalogue grows large.
     private static Task<bool> FeedUrlExistsAsync(ApplicationDbContext db, string feedUrl, CancellationToken cancellationToken)
     {
         var lowered = feedUrl.ToLowerInvariant();

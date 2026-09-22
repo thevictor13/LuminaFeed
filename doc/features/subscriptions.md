@@ -21,7 +21,10 @@ to enter another one.
 call is in flight, and further clicks are ignored meanwhile). The user id is read from the **authenticated principal**
 (`ClaimTypes.NameIdentifier`) — never from client input. The prerendered catalogue and the user's subscribed ids are
 carried into the circuit with `[PersistentState]`, so the cards don't flash back to "Loading…" and nothing is queried
-twice. Service errors surface in the shared `ErrorList` alert.
+twice. Service errors surface in the shared `ErrorList` alert at the top of the page (a card far down the list may
+have to scroll up to see it — revisited with the card paging of B1). Every button carries an accessible name
+(`aria-label="Subscribe to <feed>"` / `"Unsubscribe from <feed>"`), since a page full of otherwise identical buttons
+is unusable with a screen reader.
 
 > The minimal **Unsubscribe** is included in the skeleton on purpose: once polling and notifications are on, a test
 > subscriber would otherwise be emailed forever. It deletes the whole row; C5 refines this into per-channel control.
@@ -46,9 +49,13 @@ twice. Service errors surface in the shared `ErrorList` alert.
 - `SubscriptionServiceTests` — persisted email-only row (GUID v7), idempotent double subscribe, re-enabling email
   keeps Slack settings, unknown feed/user, blank user, unsubscribe touches only that user + feed, not-subscribed,
   re-subscribe after unsubscribe, per-user isolation of the id list.
-- `PublicPagesTests` — anonymous: all cards offer *Subscribe* as a login link with `ReturnUrl=%2F` and no
-  *Unsubscribe*; signed in (through the real login form) with one subscription: exactly one red *Unsubscribe*, the
-  rest *Subscribe* buttons, no login links, and the persisted-state payload is present.
+- `PublicPagesTests` — anonymous: all cards offer *Subscribe* as a login link with `ReturnUrl=%2F` and no red
+  button; signed in (through the real login form) with one subscription: exactly one red *Unsubscribe*, the rest
+  *Subscribe* buttons, no login links, and the persisted-state payload is present.
+- `HomePageComponentTests` (bUnit, real services on in-memory SQLite) — the **interactive path** the page tests can't
+  reach: the anonymous login link; a click on *Subscribe* turns the button into a red *Unsubscribe* and persists the
+  row; a click on *Unsubscribe* reverts it and deletes the row; the button is disabled while the call is in flight
+  (a gated service double); a failing service shows its message in the alert and leaves the button unchanged.
 - `RegistrationFlowTests` — the register path end to end through the real host: the real Register form posts, the
   recorded confirmation email carries a working link (encoded once in the HTML part, raw in the text part), opening
   it confirms the account and offers *Continue* → `Account/Login?ReturnUrl=%2F`, and the confirmed account can sign

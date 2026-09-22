@@ -37,7 +37,8 @@ else
                     <div class="col" @key="feed.Id">
                         <FeedCard Feed="feed">
                             <Actions>
-                                <SubscribeButton IsAuthenticated="@(userId is not null)"
+                                <SubscribeButton FeedName="@feed.Name"
+                                                 IsAuthenticated="@(userId is not null)"
                                                  IsSubscribed="@SubscribedFeedIds.Contains(feed.Id)"
                                                  Busy="@(busyFeedId == feed.Id)"
                                                  LoginUrl="@loginUrl"

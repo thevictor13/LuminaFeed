@@ -10,6 +10,13 @@ ordering, and category filter have real content.
 `Data/Seed/rss-feeds.json`), so there is one source of truth and no copy that can drift. To refresh the catalogue,
 edit that JSON and rebuild.
 
+The seeder bypasses the admin validator, so `SeedDataTests` holds the catalogue to the same URL rule (absolute
+http(s)) and, for the values a browser renders — `siteUrl` and `imageUrl` — requires **https**: a plain-http image on
+the https site is mixed content that some clients block. (Four image URLs and one whitespace-padded one were fixed
+in P1.R; a few `feedUrl`s stay `http://` because that is what the publisher advertises, and the fetcher follows
+their redirects over TLS.) Because seeding is insert-missing-only, an **existing** development database keeps the
+old values until it is regenerated.
+
 ## Components (`LuminaFeed/Data/Seed/`)
 
 - **`SeedCatalog` / `SeedCategory` / `SeedFeed`** — DTOs matching the JSON (field names map 1:1 to the domain model).

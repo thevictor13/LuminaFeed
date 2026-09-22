@@ -66,7 +66,7 @@
                       "category":  "Breaking News",
                       "feedUrl":  "http://rss.cnn.com/rss/edition.rss",
                       "siteUrl":  "https://www.cnn.com",
-                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "imageUrl":  "https://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
                       "description":  "Top Stories coverage from CNN.",
                       "popularity":  95250
                   },
@@ -390,7 +390,7 @@
                       "category":  "Politics",
                       "feedUrl":  "http://rss.cnn.com/rss/cnn_allpolitics.rss",
                       "siteUrl":  "https://www.cnn.com/politics",
-                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "imageUrl":  "https://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
                       "description":  "Politics coverage from CNN.",
                       "popularity":  96100
                   },
@@ -552,7 +552,7 @@
                       "category":  "Sports",
                       "feedUrl":  "https://feeds.bbci.co.uk/sport/rss.xml",
                       "siteUrl":  "https://www.bbc.com/sport",
-                      "imageUrl":  "http://news.bbc.co.uk/sol/shared/img/sport_120x60.gif",
+                      "imageUrl":  "https://news.bbc.co.uk/sol/shared/img/sport_120x60.gif",
                       "description":  "Latest sports headlines from BBC Sport.",
                       "popularity":  99595
                   },
@@ -588,7 +588,7 @@
                       "category":  "Sports",
                       "feedUrl":  "https://www.cbssports.com/rss/headlines/",
                       "siteUrl":  "https://www.cbssports.com",
-                      "imageUrl":  "\n                                https://sports.cbsimg.net/fly/images/cbssports/logo-digital.png\n\n                        ",
+                      "imageUrl":  "https://sports.cbsimg.net/fly/images/cbssports/logo-digital.png",
                       "description":  "Latest sports headlines from CBS Sports.",
                       "popularity":  69904
                   },
@@ -993,7 +993,7 @@
                       "category":  "World News",
                       "feedUrl":  "http://rss.cnn.com/rss/edition_world.rss",
                       "siteUrl":  "https://www.cnn.com/world",
-                      "imageUrl":  "http://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
+                      "imageUrl":  "https://i2.cdn.turner.com/cnn/2015/images/09/24/cnn.digital.png",
                       "description":  "World coverage from CNN.",
                       "popularity":  95897
                   },

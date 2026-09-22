@@ -62,7 +62,11 @@ so Identity's stores and the seeders are unchanged.
   validation errors, URL scheme rejection, conflicts ignoring case, unknown category, list ordering, feed counts.
 - `AdminPagesTests` — each admin page is routed and carries `[Authorize(Policy = "Admin")]`; anonymous requests are
   redirected to login with the `ReturnUrl`; a **signed-in admin** (seeded, signed in through the real login form)
-  gets the pages rendered with the seeded catalogue.
+  gets the pages rendered with the seeded catalogue (the category dropdown lists a seeded category by id).
+- `AdminFormsComponentTests` (bUnit, real services on in-memory SQLite) — the forms **submitted**: adding a category
+  / feed shows the success alert, refreshes the table and resets the form (the feeds form keeps its category
+  selected); a duplicate name shows the conflict; a blank submit lists every validation message; a `javascript:`
+  feed URL is rejected; with no categories the feeds page points at the categories page instead of a form.
 - `HostBootTests` — the services resolve from the real DI graph, and the factory-created context sees the same seeded
   database as the scoped one. The shared `TestAppFactory` keeps its temp database next to the test binaries and
   clears the SQLite connection pools so the file is actually deleted.

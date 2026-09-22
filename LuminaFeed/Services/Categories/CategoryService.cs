@@ -53,7 +53,9 @@ public sealed class CategoryService(
         return new CategorySummary(category.Id, category.Name, category.Description, FeedCount: 0);
     }
 
-    // The unique index is case-sensitive in SQLite, so the friendlier case-insensitive rule lives here.
+    // The unique index is case-sensitive in SQLite, so the friendlier case-insensitive rule lives here. ToLower()
+    // on the column means this check scans rather than seeks — fine for a handful of categories, and it keeps the
+    // same semantics on a case-insensitive provider (SQL Server) without a collation change (see FeedService).
     private static Task<bool> NameExistsAsync(ApplicationDbContext db, string name, CancellationToken cancellationToken)
     {
         var lowered = name.ToLowerInvariant();

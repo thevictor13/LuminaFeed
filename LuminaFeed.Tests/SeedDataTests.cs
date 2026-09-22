@@ -1,6 +1,7 @@
 using LuminaFeed.Data;
 using LuminaFeed.Data.Seed;
 using LuminaFeed.Domain;
+using LuminaFeed.Services.Feeds;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -55,6 +56,27 @@ public sealed class SeedDataTests : IDisposable
             Assert.False(string.IsNullOrWhiteSpace(f.Name));
             Assert.False(string.IsNullOrWhiteSpace(f.FeedUrl));
             Assert.False(string.IsNullOrWhiteSpace(f.SiteUrl));
+        });
+    }
+
+    [Fact]
+    public void EmbeddedCatalog_UrlsPassTheAdminRule_AndBrowserFacingOnesAreHttps()
+    {
+        var catalog = SeedCatalogLoader.LoadEmbedded();
+
+        Assert.All(catalog.Feeds, f =>
+        {
+            // The seeder bypasses the admin validator, so hold the catalogue to the same URL rule.
+            Assert.True(CreateFeedRequestValidator.BeAbsoluteHttpUrl(f.FeedUrl), f.FeedUrl);
+            Assert.True(CreateFeedRequestValidator.BeAbsoluteHttpUrl(f.SiteUrl), f.SiteUrl);
+            // Feed endpoints are fetched server-side (a few publishers only advertise http and redirect), but site
+            // links and images render in the browser on an https page, where plain http is mixed content.
+            Assert.StartsWith("https://", f.SiteUrl);
+            if (f.ImageUrl is not null)
+            {
+                Assert.True(CreateFeedRequestValidator.BeAbsoluteHttpUrl(f.ImageUrl), f.ImageUrl);
+                Assert.StartsWith("https://", f.ImageUrl);
+            }
         });
     }
 

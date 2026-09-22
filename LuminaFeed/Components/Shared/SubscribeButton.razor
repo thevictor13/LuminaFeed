@@ -1,18 +1,21 @@
 @* Subscribe / Unsubscribe (red) for signed-in users; anonymous users are sent to log in and come back. *@
 @if (!IsAuthenticated)
 {
-    <a href="@LoginUrl" class="btn btn-sm btn-primary">Subscribe</a>
+    <a href="@LoginUrl" class="btn btn-sm btn-primary" aria-label="@($"Subscribe to {FeedName}")">Subscribe</a>
 }
 else if (IsSubscribed)
 {
-    <button type="button" class="btn btn-sm btn-danger" disabled="@Busy" @onclick="OnToggle">Unsubscribe</button>
+    <button type="button" class="btn btn-sm btn-danger" disabled="@Busy" aria-label="@($"Unsubscribe from {FeedName}")" @onclick="OnToggle">Unsubscribe</button>
 }
 else
 {
-    <button type="button" class="btn btn-sm btn-primary" disabled="@Busy" @onclick="OnToggle">Subscribe</button>
+    <button type="button" class="btn btn-sm btn-primary" disabled="@Busy" aria-label="@($"Subscribe to {FeedName}")" @onclick="OnToggle">Subscribe</button>
 }
 
 @code {
+    /// <summary>Names the feed in the accessible label — every card carries an otherwise identical button.</summary>
+    [Parameter, EditorRequired] public string FeedName { get; set; } = string.Empty;
+
     [Parameter] public bool IsAuthenticated { get; set; }
     [Parameter] public bool IsSubscribed { get; set; }
 
